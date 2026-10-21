@@ -10,7 +10,7 @@ URL: https://github.com/g-kari/php-image
 Source0: php-%{series}.tar
 Source1: php-%{series}.json
 Source2: test-cli.py
-BuildRequires: gcc gcc-c++ make autoconf bison re2c pkgconfig
+BuildRequires: gcc gcc-c++ make autoconf bison re2c pkgconfig python3
 BuildRequires: openssl-devel libxml2-devel libcurl-devel zlib-devel sqlite-devel
 Requires: ca-certificates
 AutoReqProv: yes
@@ -86,7 +86,7 @@ WantedBy=multi-user.target
 EOF
 mkdir -p %{buildroot}%{prefix}/share/mitigation
 cp %{SOURCE1} %{buildroot}%{prefix}/share/mitigation/source.json
-./sapi/cli/php -i > %{buildroot}%{prefix}/share/mitigation/php-build-info.txt
+sapi/cli/php -n -r 'echo json_encode(["version"=>PHP_VERSION,"version_id"=>PHP_VERSION_ID,"int_size"=>PHP_INT_SIZE,"zts"=>PHP_ZTS,"debug"=>PHP_DEBUG,"os"=>PHP_OS,"extensions"=>get_loaded_extensions()], JSON_PRETTY_PRINT), PHP_EOL;' > %{buildroot}%{prefix}/share/mitigation/php-build-info.txt
 cp config.nice %{buildroot}%{prefix}/share/mitigation/
 mkdir -p %{buildroot}%{_docdir}/%{name}
 # Preserve both licenses without a name collision.

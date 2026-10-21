@@ -19,10 +19,28 @@
       "package": "php80-mitigation"
     }
   },
-  "container": {
-    "base": "docker.io/library/php:8.1-fpm@sha256:a3118db1911fdd3b3ac66605122ddc859286688ced86fc860fec6d19cc2d6c55",
-    "baseEvidence": "https://github.com/docker-library/repo-info/blob/168f439cc0b6e6bcdb4e93227ff2ef55fd6518a1/repos/php/remote/8.1-fpm.md",
-    "officialRecipe": "https://github.com/docker-library/php/blob/5c037abaf9dc0095e29807c048d9d1b97e6a9716/8.1/trixie/fpm/Dockerfile",
-    "platform": "linux/amd64"
+  "al2": {
+    "base": "docker.io/library/amazonlinux:2@sha256:f86b99704b49b2fde6bf42b4c5257fcb0b1e0946509da5d6cea08c4227618433",
+    "evidence": "https://github.com/docker-library/repo-info/blob/master/repos/amazonlinux/remote/2.md"
+  },
+  "containers": {
+    "8.1": {
+      "base": "docker.io/library/php:8.1-fpm@sha256:a3118db1911fdd3b3ac66605122ddc859286688ced86fc860fec6d19cc2d6c55",
+      "baseEvidence": "https://github.com/docker-library/repo-info/blob/168f439cc0b6e6bcdb4e93227ff2ef55fd6518a1/repos/php/remote/8.1-fpm.md",
+      "officialRecipe": "https://github.com/docker-library/php/blob/5c037abaf9dc0095e29807c048d9d1b97e6a9716/8.1/trixie/fpm/Dockerfile",
+      "platform": "linux/amd64"
+    },
+    "7.4": {
+      "base": "docker.io/library/php:7.4-fpm@sha256:3ac7c8c74b2b047c7cb273469d74fc0d59b857aa44043e6ea6a0084372811d5b",
+      "baseEvidence": "https://github.com/docker-library/repo-info/blob/e8bc6bd063774c173b421ceb8f374f3a89efb8ee/repos/php/remote/7.4-fpm.md",
+      "officialRecipe": "https://github.com/docker-library/php/blob/1361ba95d80570e3984f9de9f765948246191557/7.4/bullseye/fpm/Dockerfile",
+      "platform": "linux/amd64"
+    },
+    "8.0": {
+      "base": "docker.io/library/php:8.0-fpm@sha256:b07b8df17506cdb370945d942c5f12356af2d078005ded8b195f7e17129de9d1",
+      "baseEvidence": "https://github.com/docker-library/repo-info/blob/6797bec2512db63739c358fc31bee8f154f4cdfc/repos/php/remote/8.0-fpm.md",
+      "officialRecipe": "https://github.com/docker-library/php/blob/df4636cac888ec860ccbf0f200637b88a2fb22ab/8.0/bullseye/fpm/Dockerfile",
+      "platform": "linux/amd64"
+    }
   }
 }

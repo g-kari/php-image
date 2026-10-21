@@ -6,8 +6,9 @@ COPY sources/php-8.1.tar /work/php.tar
 COPY sources/php-8.1.json /work/source.json
 COPY scripts/test-cli.py /work/test-cli.py
 RUN set -eux; \
-    apt-get update; \
+    apt-get update; apt-get upgrade -y; \
     apt-get install -y --no-install-recommends bison python3 libargon2-dev libcurl4-openssl-dev libonig-dev libreadline-dev libsodium-dev libsqlite3-dev libssl-dev libxml2-dev zlib1g-dev; \
+    python3 -c 'import hashlib,json; m=json.load(open("/work/source.json")); assert m["sha"]=="1d7dec178a094e6e75b229ce22754045f8c6070a"; assert hashlib.sha256(open("/work/php.tar","rb").read()).hexdigest()==m["archive_sha256"]'; \
     mkdir -p /work/src /stage; tar -xf /work/php.tar -C /work/src --strip-components=1; \
     cd /work/src; ./buildconf --force; \
     export CFLAGS="$PHP_CFLAGS" CPPFLAGS="$PHP_CPPFLAGS" LDFLAGS="$PHP_LDFLAGS"; \
@@ -21,7 +22,7 @@ RUN set -eux; \
     make install INSTALL_ROOT=/stage; \
     mkdir -p /stage/usr/local/share/php-mitigation; \
     cp /work/source.json config.nice /stage/usr/local/share/php-mitigation/; \
-    sapi/cli/php -n -i > /stage/usr/local/share/php-mitigation/php-build-info.txt; \
+    sapi/cli/php -n -r 'echo json_encode(["version"=>PHP_VERSION,"version_id"=>PHP_VERSION_ID,"int_size"=>PHP_INT_SIZE,"zts"=>PHP_ZTS,"debug"=>PHP_DEBUG,"os"=>PHP_OS,"extensions"=>get_loaded_extensions()], JSON_PRETTY_PRINT), PHP_EOL;' > /stage/usr/local/share/php-mitigation/php-build-info.txt; \
     cp LICENSE /stage/usr/local/share/php-mitigation/LICENSE.PHP; \
     cp Zend/LICENSE /stage/usr/local/share/php-mitigation/LICENSE.Zend; \
     dpkg-query -W > /stage/usr/local/share/php-mitigation/build-dpkg.txt; \

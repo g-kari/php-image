@@ -1,0 +1,51 @@
+name: Verify legacy PHP builds
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  al2:
+    name: AL2 PHP ${{ matrix.series }} x86_64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        series: ['7.4', '8.0', '8.1']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Build and test independent-prefix RPM and SRPM
+        run: bash scripts/ci-al2.sh '${{ matrix.series }}'
+      - name: Record result
+        if: always()
+        run: |
+          echo 'Series-specific build and runtime result: ${{ job.status }}' >> "$GITHUB_STEP_SUMMARY"
+          test ! -f out/fpm-test.json || cat out/fpm-test.json >> "$GITHUB_STEP_SUMMARY"
+  container:
+    name: PHP ${{ matrix.series }} FPM linux/amd64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        series: ['7.4', '8.0', '8.1']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - name: Build and test fixed full-source FPM
+        run: bash scripts/ci-container.sh '${{ matrix.series }}'
+      - name: Record result
+        if: always()
+        run: |
+          echo 'Series-specific build and runtime result: ${{ job.status }}' >> "$GITHUB_STEP_SUMMARY"
+          test ! -f out/fpm-test.json || cat out/fpm-test.json >> "$GITHUB_STEP_SUMMARY"
