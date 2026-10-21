@@ -33,9 +33,13 @@ test -x configure || ./buildconf --force
 export CFLAGS="%{optflags} -fstack-protector-strong -fPIC"
 export LDFLAGS="-Wl,-z,relro -Wl,-z,now"
 if [ "%{series}" = 8.2 ]; then
- pkg-config --atleast-version=1.1.1 openssl11
- # Builder-local aliases only. Never replace system pkg-config metadata or libraries.
- pcdir="$(pkg-config --variable=pcfiledir openssl11)"
+ # Builder-local aliases must precede pkg-config dependency resolution.
+ # An ambiguous/nonexistent vendor path must fail closed, without changing global metadata.
+ pcfile="$(rpm -ql openssl11-devel | grep '/openssl11.pc$')"
+ test "$(printf '%s\n' "$pcfile" | wc -l)" -eq 1
+ case "$pcfile" in /*/openssl11.pc) ;; *) exit 1;; esac
+ test -f "$pcfile"
+ pcdir="$(dirname "$pcfile")"
  private_pc="$PWD/.php82-pkgconfig"
  mkdir -p "$private_pc"
  for module in openssl libssl libcrypto; do
@@ -43,6 +47,7 @@ if [ "%{series}" = 8.2 ]; then
   ln -s "$pcdir/${module}11.pc" "$private_pc/$module.pc"
  done
  export PKG_CONFIG_PATH="$private_pc${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+ pkg-config --atleast-version=1.1.1 openssl11
  pkg-config --atleast-version=1.1.1 openssl
  test "$(pkg-config --modversion openssl)" = "$(pkg-config --modversion openssl11)"
  { pkg-config --modversion openssl; pkg-config --cflags openssl; pkg-config --libs openssl; } > php82-effective-openssl-provider.txt
