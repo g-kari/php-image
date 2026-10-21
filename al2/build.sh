@@ -33,8 +33,10 @@ assert m["sha"]==sys.argv[2]
 assert hashlib.sha256(open("/work/sources/php-"+sys.argv[1]+".tar","rb").read()).hexdigest()==m["archive_sha256"]
 PY
 if [[ "$series" = 8.2 ]]; then
- pkg-config --atleast-version=1.1.1 openssl11
- { pkg-config --modversion openssl11; pkg-config --cflags openssl11; pkg-config --libs openssl11; rpm -ql openssl11-devel; } > /out/php82-openssl11-build-provider.txt
+ # Record raw vendor metadata first; resolve generic Requires only after private aliases in the spec.
+ { rpm -q openssl11-devel openssl11-libs; rpm -ql openssl11-devel;
+   while IFS= read -r pc; do echo "METADATA $pc"; cat "$pc"; done < <(rpm -ql openssl11-devel | grep '/[^/]*11.pc$');
+ } | tee /out/php82-openssl11-build-provider.txt
 fi
 useradd -m builder
 mkdir -p /home/builder/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS} /out
