@@ -1,0 +1,64 @@
+name: Inspect published AL2 RPM payloads
+on:
+  push:
+    branches: [inspect-al2-payload]
+permissions:
+  contents: read
+jobs:
+  inventory:
+    if: github.repository == 'g-kari/php-image' && github.ref == 'refs/heads/inspect-al2-payload'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        series: ['7.4', '8.0', '8.1', '8.2']
+    steps:
+      - name: Download the existing public binary RPM and verify pinned published bytes
+        run: |
+          mkdir -p artifacts
+          python3 - <<'PY'
+          import hashlib,json,pathlib,urllib.request
+          targets=json.loads("{\"7.4\":{\"url\":\"https://github.com/g-kari/php-image/releases/download/al2-7.4-3e399dfb0453/php74-mitigation-7.4.34-0.mitigation.5.amzn2.x86_64.rpm\",\"sha256\":\"c050fb1e6650127dd92de78e10b5e030dc5a88d20fe7cd506de53a4d290b0082\",\"source_sha\":\"712e60f9edfd03f0960fc4fc3c2c375f42b90aa2\",\"package\":\"php74-mitigation\",\"release\":\"https://github.com/g-kari/php-image/releases/tag/al2-7.4-3e399dfb0453\"},\"8.0\":{\"url\":\"https://github.com/g-kari/php-image/releases/download/al2-8.0-3e399dfb0453/php80-mitigation-8.0.30-0.mitigation.5.amzn2.x86_64.rpm\",\"sha256\":\"d14a61c6d62151ca0cdbe5f65ce19c507a981a1dbc2db2cbc317879909d60c3d\",\"source_sha\":\"82f8f31b16a035c1b67cc253e79f7cc288f4cc20\",\"package\":\"php80-mitigation\",\"release\":\"https://github.com/g-kari/php-image/releases/tag/al2-8.0-3e399dfb0453\"},\"8.1\":{\"url\":\"https://github.com/g-kari/php-image/releases/download/al2-8.1-3e399dfb0453/php81-mitigation-8.1.34-0.mitigation.5.amzn2.x86_64.rpm\",\"sha256\":\"013c40e611f6158143e15828f995d9c28913be27a9b9b9d9c1f1120d94a586eb\",\"source_sha\":\"1d7dec178a094e6e75b229ce22754045f8c6070a\",\"package\":\"php81-mitigation\",\"release\":\"https://github.com/g-kari/php-image/releases/tag/al2-8.1-3e399dfb0453\"},\"8.2\":{\"url\":\"https://github.com/g-kari/php-image/releases/download/al2-8.2-0bcc2d7d9d8d/php82-security-8.2.35-1.security.9.amzn2.x86_64.rpm\",\"sha256\":\"c661a3295916bcd65bc7799886ca53fa1604a0e44f885ecf9f75bd73dc24f377\",\"source_sha\":\"09a9f29a0402bb87bb448cb2e3149ccbec1699c6\",\"package\":\"php82-security\",\"release\":\"https://github.com/g-kari/php-image/releases/tag/al2-8.2-0bcc2d7d9d8d\"}}")
+          item=targets["${{ matrix.series }}"]
+          with urllib.request.urlopen(item["url"],timeout=90) as response:
+              data=response.read(67108865)
+          if len(data)>67108864 or hashlib.sha256(data).hexdigest()!=item["sha256"]:
+              raise RuntimeError("Existing published RPM digest mismatch")
+          pathlib.Path("artifacts/package.rpm").write_bytes(data)
+          pathlib.Path("artifacts/target.json").write_text(json.dumps(item))
+          print("ANONYMOUS_PUBLIC_RPM_DOWNLOAD="+json.dumps(item))
+          PY
+      - name: Query the real RPM payload and installed CLI FPM OPcache extension inventory
+        run: |
+          package="$(python3 -c 'import json; print(json.load(open("artifacts/target.json"))["package"])')"
+          source_sha="$(python3 -c 'import json; print(json.load(open("artifacts/target.json"))["source_sha"])')"
+          docker run --rm --platform linux/amd64 --memory 1g --cpus 2 --pids-limit 128 \
+            -v "$PWD/artifacts:/artifacts:ro" \
+            'docker.io/library/amazonlinux:2@sha256:f86b99704b49b2fde6bf42b4c5257fcb0b1e0946509da5d6cea08c4227618433' \
+            bash -s -- "$package" "$source_sha" <<'SH'
+          set -euo pipefail
+          pkg="$1"; expected_sha="$2"
+          echo RPM_PAYLOAD_BEGIN
+          rpm -qlp /artifacts/package.rpm
+          echo RPM_PAYLOAD_END
+          before="$(rpm -q glibc)"
+          yum localinstall -y /artifacts/package.rpm
+          test "$(rpm -q glibc)" = "$before"
+          rpm -V "$pkg"
+          cli="$(rpm -ql "$pkg" | grep '/bin/php$')"
+          fpm="$(rpm -ql "$pkg" | grep '/sbin/php-fpm$')"
+          opcache="$(rpm -ql "$pkg" | grep '/opcache.so$')"
+          test -x "$cli" && test -x "$fpm" && test -f "$opcache"
+          test -f "/usr/lib/systemd/system/$pkg.service"
+          test -f "/etc/$pkg/php.ini"
+          test -f "/etc/$pkg/php-fpm.conf"
+          prefix="$(dirname "$(dirname "$cli")")"
+          "$cli" --version
+          "$cli" --ini
+          "$cli" -m
+          "$fpm" --version
+          "$fpm" -t -y "/etc/$pkg/php-fpm.conf"
+          "$cli" -r '$m=json_decode(file_get_contents($argv[1]),true); if($m["sha"]!==$argv[2])exit(1);$e=get_loaded_extensions();sort($e);echo "ACTUAL_AL2_INVENTORY=",json_encode(["version"=>PHP_VERSION,"cli"=>PHP_BINARY,"extensions"=>$e,"source_sha"=>$m["sha"]]),PHP_EOL;' "$prefix/share/mitigation/source.json" "$expected_sha"
+          printf 'ACTUAL_PAYLOAD_PATHS cli=%s fpm=%s opcache=%s service=%s\n' "$cli" "$fpm" "$opcache" "/usr/lib/systemd/system/$pkg.service"
+          SH
