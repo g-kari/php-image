@@ -1,0 +1,81 @@
+name: Read official AL2 PHP baseline
+on:
+  push:
+    branches: [inspect-official-al2-baseline]
+permissions:
+  contents: read
+jobs:
+  baseline:
+    if: github.repository == 'g-kari/php-image' && github.ref == 'refs/heads/inspect-official-al2-baseline'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        series: ['7.4', '8.0', '8.1', '8.2']
+    steps:
+      - name: Read official Extra metadata and source specs without building or publishing
+        run: |
+          docker run --rm -i --platform linux/amd64 --memory 2g --cpus 2 --pids-limit 256 \
+            'docker.io/library/amazonlinux:2@sha256:f86b99704b49b2fde6bf42b4c5257fcb0b1e0946509da5d6cea08c4227618433' \
+            bash -s -- '${{ matrix.series }}' <<'SH' | tee baseline.txt
+          set -euo pipefail
+          topic="php$1"
+          yum install -y amazon-linux-extras yum-utils cpio
+          rpm -q amazon-linux-extras yum-utils
+          amazon-linux-extras list
+          amazon-linux-extras enable "$topic"
+          yum repolist all
+          python - "$topic" <<'PY' > /tmp/selected-repos.txt
+          import ConfigParser,glob,sys
+          cfg=ConfigParser.RawConfigParser()
+          cfg.read(glob.glob("/etc/yum.repos.d/*.repo"))
+          expected="amzn2extra-"+sys.argv[1]
+          bins=[s for s in cfg.sections() if s==expected]
+          srcs=[s for s in cfg.sections() if s.startswith(expected) and "source" in s]
+          if len(bins)!=1 or len(srcs)!=1: raise RuntimeError("Missing/ambiguous actual topic/source repo: "+repr(cfg.sections()))
+          print(bins[0]); print(srcs[0])
+          for section in bins+srcs:
+              sys.stderr.write("ACTUAL_REPO_CONFIG "+section+" "+repr(dict(cfg.items(section)))+"\n")
+          PY
+          binary="$(sed -n 1p /tmp/selected-repos.txt)"
+          source="$(sed -n 2p /tmp/selected-repos.txt)"
+          echo "BASELINE_REPOS binary=$binary source=$source"
+          echo OFFICIAL_PACKAGE_METADATA_BEGIN
+          repoquery --disablerepo='*' --enablerepo="$binary" --archlist=x86_64,noarch \
+            --qf '%{name}|%{epoch}|%{version}|%{release}|%{arch}|%{sourcerpm}' 'php*'
+          echo OFFICIAL_PACKAGE_METADATA_END
+          repoquery --disablerepo='*' --enablerepo="$binary" --archlist=x86_64,noarch --qf '%{name}' 'php*' | grep '^php' | sort -u > /tmp/package-names.txt
+          test -s /tmp/package-names.txt
+          echo OFFICIAL_ALL_PACKAGE_FILES_BEGIN
+          repoquery --disablerepo='*' --enablerepo="$binary" --archlist=x86_64,noarch --list 'php*'
+          echo OFFICIAL_ALL_PACKAGE_FILES_END
+          for package in php-common php-cli php-process php-xml php-fpm php-opcache php-devel php-embedded; do
+              echo "OFFICIAL_SELECTED_FILES_BEGIN $package"
+              repoquery --disablerepo='*' --enablerepo="$binary" --archlist=x86_64,noarch --list "$package"
+              echo "OFFICIAL_SELECTED_FILES_END $package"
+          done
+          mkdir -p /tmp/source-rpms /tmp/source-specs
+          mapfile -t packages < /tmp/package-names.txt
+          yumdownloader --source --disablerepo='*' --enablerepo="$binary" --enablerepo="$source" --destdir=/tmp/source-rpms "${packages[@]}"
+          found=0
+          for srpm in /tmp/source-rpms/*.src.rpm; do
+              test -f "$srpm"
+              found=$((found+1))
+              echo OFFICIAL_SOURCE_RPM_BEGIN
+              rpm -qp --qf '%{NAME}|%{EPOCH}|%{VERSION}|%{RELEASE}|%{ARCH}\n' "$srpm"
+              sha256sum "$srpm"
+              dest="/tmp/source-specs/$(basename "$srpm")"
+              mkdir -p "$dest"
+              rpm2cpio "$srpm" | (cd "$dest" && cpio -id --quiet '*.spec')
+              while IFS= read -r spec; do
+                  echo "OFFICIAL_SPEC_BEGIN $(basename "$srpm") $(basename "$spec")"
+                  cat "$spec"
+                  echo "OFFICIAL_SPEC_END $(basename "$srpm") $(basename "$spec")"
+              done < <(find "$dest" -type f -name '*.spec' | sort)
+              echo OFFICIAL_SOURCE_RPM_END
+          done
+          test "$found" -gt 0
+          echo "OFFICIAL_BASELINE_COMPLETE topic=$topic sources=$found"
+          SH
+          grep -q '^OFFICIAL_BASELINE_COMPLETE ' baseline.txt
