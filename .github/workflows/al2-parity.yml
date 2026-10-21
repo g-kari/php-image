@@ -1,0 +1,30 @@
+name: Validate AL2 full-feature variant
+on:
+  push:
+    branches: [build-al2-parity]
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.repository == 'g-kari/php-image' && github.ref == 'refs/heads/build-al2-parity'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        series: ['7.4', '8.0', '8.1', '8.2']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Prepare the same fixed official security source
+        run: python3 scripts/prepare-source.py '${{ matrix.series }}'
+      - name: Compile the isolated CLI and web engines without publication credentials
+        run: |
+          mkdir -p out
+          base="$(python3 -c 'import json;print(json.load(open("sources.lock.json"))["al2"]["base"])')"
+          docker run --rm --platform linux/amd64 --memory 6g --cpus 2 --pids-limit 512 \
+            -e CI_DISPOSABLE_BUILD=1 -e BUILD_ID="$GITHUB_RUN_NUMBER" -e RECIPE_SHA="$GITHUB_SHA" \
+            -v "$PWD:/work:ro" -v "$PWD/out:/out" "$base" bash /work/al2-parity/build.sh '${{ matrix.series }}' 2>&1 | tee out/build.log
+      - name: Explicitly retain the incomplete-publication state
+        run: echo "Build-only development. Runtime, remaining SAPI/PECL coverage, review and publication are separate gates; no package is published."
