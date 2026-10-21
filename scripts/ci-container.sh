@@ -22,7 +22,14 @@ docker exec "$cid" pear version > out/pear-version.txt
 docker exec "$cid" pecl version > out/pecl-version.txt
 docker exec "$cid" php --ini > out/php-ini.txt
 docker exec "$cid" php -m | sort > out/php-modules.txt
-diff -u out/base-php-modules.txt out/php-modules.txt
+if [[ "$series" = 7.4 || "$series" = 8.0 ]]; then
+ # Explicit documented delta: these old official images shipped OPcache disabled.
+ sed '/^Zend OPcache$/d' out/base-php-modules.txt > out/base-module-compare.txt
+ sed '/^Zend OPcache$/d' out/php-modules.txt > out/fixed-module-compare.txt
+ diff -u out/base-module-compare.txt out/fixed-module-compare.txt
+else
+ diff -u out/base-php-modules.txt out/php-modules.txt
+fi
 docker exec "$cid" sh -c 'cat /usr/local/share/php-mitigation/source.json' > out/source.json
 docker exec "$cid" sh -c 'sha256sum /usr/local/bin/php /usr/local/sbin/php-fpm' > out/binaries.sha256
 bash scripts/install-syft.sh
@@ -39,4 +46,8 @@ pathlib.Path("out/provenance.json").write_text(json.dumps({"series":sys.argv[1],
 "tests":["CLI functional","CLI OOM exit without shutdown callback","FPM OPcache + session worker reuse","multipart upload","OOM worker replacement"],
 "limits":["not full upstream test suite","not application compatibility proof","not renewed upstream or base-OS support"]},indent=2)+"\n")
 PY
+docker stop -t 10 "$cid" >/dev/null
+docker logs "$cid" > out/runtime.log 2>&1
+docker rm "$cid" >/dev/null
+cid=""
 (cd out && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)

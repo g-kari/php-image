@@ -49,6 +49,9 @@ RUN set -eux; sed -i 's|http://deb.debian.org/debian-security|https://archive.de
 COPY --from=build /stage/usr/local/ /usr/local/
 # Original source tar was vulnerable; replace it so docker-php-ext-install cannot use it.
 COPY sources/php-8.0.tar /usr/src/php-mitigation.tar
+# Historical 8.0 official images did not enable OPcache by default.
+# Enable the rebuilt module explicitly; this is a documented deliberate config delta.
+RUN docker-php-ext-enable opcache
 RUN set -eux; \
     rm -f /usr/src/php.tar.xz; \
     xz -c /usr/src/php-mitigation.tar > /usr/src/php.tar.xz; \

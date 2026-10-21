@@ -88,7 +88,6 @@ mkdir -p %{buildroot}%{prefix}/share/mitigation
 cp %{SOURCE1} %{buildroot}%{prefix}/share/mitigation/source.json
 sapi/cli/php -n -r 'echo json_encode(["version"=>PHP_VERSION,"version_id"=>PHP_VERSION_ID,"int_size"=>PHP_INT_SIZE,"zts"=>PHP_ZTS,"debug"=>PHP_DEBUG,"os"=>PHP_OS,"extensions"=>get_loaded_extensions()], JSON_PRETTY_PRINT), PHP_EOL;' > %{buildroot}%{prefix}/share/mitigation/php-build-info.txt
 cp config.nice %{buildroot}%{prefix}/share/mitigation/
-sha256sum %{buildroot}%{prefix}/bin/php %{buildroot}%{prefix}/sbin/php-fpm | sed 's|%{buildroot}||g' > %{buildroot}%{prefix}/share/mitigation/binaries.sha256
 mkdir -p %{buildroot}%{_docdir}/%{name}
 # Preserve both licenses without a name collision.
 cp Zend/LICENSE %{buildroot}%{_docdir}/%{name}/LICENSE.Zend

@@ -17,6 +17,7 @@ prefix="/opt/php-mitigation/$series-$sha-$build_id"
 "$prefix/sbin/php-fpm" -t -y "/etc/$pkg/php-fpm.conf"
 "$prefix/bin/php" -r 'if (!extension_loaded("Zend OPcache") || !extension_loaded("curl") || !extension_loaded("openssl")) exit(1);'
 ldd "$prefix/bin/php"; ldd "$prefix/sbin/php-fpm"
+rpm -V "$pkg" > /out/rpm-verify.txt
 sha256sum "$prefix/bin/php" "$prefix/sbin/php-fpm" > /out/binaries.sha256
 cp "$prefix/share/mitigation/source.json" /out/runtime-source.json
 exec "$prefix/sbin/php-fpm" -F -y /tests/fpm-al2.conf

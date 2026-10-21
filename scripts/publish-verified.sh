@@ -22,6 +22,23 @@ if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; t
  echo "Release already exists; refusing to overwrite or assume an incomplete upload succeeded." >&2
  exit 1
 fi
+# Scan evidence before any registry or Release publication.
+scan_evidence() {
+ if grep -IRnE --exclude='*.rpm' --exclude='*.gz' --exclude='SHA256SUMS' \
+  '(-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,})' out; then
+  echo "Potential secret in publication evidence; refusing publication." >&2; exit 1
+ fi
+}
+scan_evidence
+assert_current_head() {
+ local current
+ current="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)"
+ test "$current" = "$GITHUB_SHA" || {
+  echo "Commit superseded before publication. Stop without overwriting or hiding prior outcomes." >&2
+  exit 1
+ }
+}
+assert_current_head
 if [[ "$target" = fpm ]]; then
  image="ghcr.io/$GITHUB_REPOSITORY:$series-fpm-cve2026-$short"
  docker tag php-mitigation:test "$image"
@@ -32,6 +49,7 @@ if [[ "$target" = fpm ]]; then
  trap 'docker logout ghcr.io >/dev/null 2>&1 || true; rm -rf "$DOCKER_CONFIG"' EXIT
  printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
  # No mutable/latest tag. An uncertain push failure must be reconciled, not blindly retried.
+ assert_current_head
  docker push "$image" | tee out/registry-push.txt
  digest_ref="$(docker image inspect -f '{{index .RepoDigests 0}}' "$image")"
  [[ "$digest_ref" =~ ^ghcr.io/g-kari/php-image@sha256:[0-9a-f]{64}$ ]]
@@ -71,16 +89,23 @@ See README and NOTICE at this recipe commit before installation or redistributio
 EOF
 (cd out && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
 # Draft first. Public release only after every asset upload is present.
+assert_current_head
 gh release create "$release_tag" out/* --repo "$GITHUB_REPOSITORY" \
  --target "$GITHUB_SHA" --draft --prerelease --title "$target PHP $series mitigation ($short)" \
  --notes-file out/RELEASE-NOTES.md
-gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" --json assets > release-assets.json
+gh api "repos/$GITHUB_REPOSITORY/releases/tags/$release_tag" > release-assets.json
 python3 - <<'PY'
-import json,pathlib
+import hashlib,json,pathlib
 if not __debug__: raise RuntimeError("Optimized Python verification forbidden")
-expected={p.name for p in pathlib.Path("out").iterdir() if p.is_file()}
-actual={p["name"] for p in json.load(open("release-assets.json"))["assets"]}
-if actual != expected: raise RuntimeError("Incomplete release assets: "+str(expected^actual))
+expected={p.name:p for p in pathlib.Path("out").iterdir() if p.is_file()}
+actual={p["name"]:p for p in json.load(open("release-assets.json"))["assets"]}
+if set(actual) != set(expected): raise RuntimeError("Incomplete release assets")
+for name,path in expected.items():
+    item=actual[name]
+    if item["size"] != path.stat().st_size: raise RuntimeError("Asset size mismatch: "+name)
+    sha=hashlib.sha256(path.read_bytes()).hexdigest()
+    if item.get("digest") != "sha256:"+sha: raise RuntimeError("Asset digest missing/mismatch: "+name)
 PY
+assert_current_head
 gh release edit "$release_tag" --repo "$GITHUB_REPOSITORY" --draft=false
 echo "Published verified $target PHP $series Release: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$release_tag"

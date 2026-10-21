@@ -76,3 +76,7 @@ PEAR installation is not re-run from the network during rebuilding. Inherited PE
 The AL2 FPM smoke test does not start systemd inside a container. It validates the packaged FPM configuration syntax, then runs a dedicated test-only TCP configuration. Systemd unit activation, the packaged Unix socket, real-host RuntimeDirectory behavior and an application's actual handler remain deployment-site tests.
 
 Additional bounded runtime checks exercise OpenSSL digest/randomness, curl version lookup, in-memory PDO SQLite and actual OPcache compile/cache lookup. Docker additionally tests mbstring/sodium and inherited PEAR/PECL version commands; AL2 additionally tests bcmath/mysqli availability. These are local functional checks, not a live DB/TLS integration test.
+
+The historical official 7.4/8.0 FPM images shipped OPcache disabled. These mitigation images explicitly enable the freshly rebuilt OPcache module, a deliberate documented configuration difference. Apart from that expected module-list addition, CI compares the inherited and rebuilt module inventories.
+
+日本語の [パッチ適用の確認方法と証跡](VERIFY.md) を参照してください。バージョン文字列だけでなく、完全な固定 source SHA と実行バイナリ/成果物の checksum を照合できます。
