@@ -9,5 +9,5 @@ session_start();
 $_SESSION['counter'] = ($_SESSION['counter'] ?? 0) + 1;
 header('Content-Type: application/json');
 echo json_encode(['ok' => true, 'pid' => getmypid(), 'version' => PHP_VERSION,
-    'opcache' => extension_loaded('Zend OPcache'), 'opcache_cached' => opcache_is_script_cached(__FILE__), 'counter' => $_SESSION['counter'],
+    'opcache' => extension_loaded('Zend OPcache'), 'opcache_cached' => function_exists('opcache_is_script_cached') && opcache_is_script_cached(__FILE__), 'counter' => $_SESSION['counter'],
     'files' => array_keys($_FILES), 'post' => $_POST]);

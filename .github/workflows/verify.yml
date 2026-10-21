@@ -1,4 +1,4 @@
-name: Verify legacy PHP builds
+name: Build test and distribute PHP
 on:
   push:
     branches: [main]
@@ -7,32 +7,65 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: verify-${{ github.ref }}
+  group: php-distribution-${{ github.sha }}
   cancel-in-progress: false
 jobs:
-  al2:
-    name: AL2 PHP ${{ matrix.series }} x86_64
+  verify:
+    if: github.event_name != 'push'
+    name: Read-only ${{ matrix.target }} PHP ${{ matrix.series }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        series: ['7.4', '8.0', '8.1']
+        include:
+          - {target: al2, series: '7.4'}
+          - {target: al2, series: '8.0'}
+          - {target: al2, series: '8.1'}
+          - {target: al2, series: '8.2'}
+          - {target: fpm, series: '7.4'}
+          - {target: fpm, series: '8.0'}
+          - {target: fpm, series: '8.1'}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Build and test independent-prefix RPM and SRPM
+      - name: Read-only build and runtime verification
+        run: |
+          if [ '${{ matrix.target }}' = al2 ]; then
+            bash scripts/ci-al2.sh '${{ matrix.series }}'
+          else
+            bash scripts/ci-container.sh '${{ matrix.series }}'
+          fi
+  publish-al2:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'g-kari/php-image'
+    name: Build test publish AL2 PHP ${{ matrix.series }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        series: ['7.4', '8.0', '8.1', '8.2']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Build and test this series without publication credentials
         run: bash scripts/ci-al2.sh '${{ matrix.series }}'
-      - name: Record result
-        if: always()
-        run: |
-          echo 'Series-specific build and runtime result: ${{ job.status }}' >> "$GITHUB_STEP_SUMMARY"
-          test ! -f out/fpm-test.json || cat out/fpm-test.json >> "$GITHUB_STEP_SUMMARY"
-  container:
-    name: PHP ${{ matrix.series }} FPM linux/amd64
+      - name: Publish only this exact tested RPM and SRPM
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/publish-verified.sh al2 '${{ matrix.series }}'
+  publish-fpm:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'g-kari/php-image'
+    name: Build test publish FPM PHP ${{ matrix.series }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    permissions:
+      contents: write
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -41,14 +74,9 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
-        with:
-          buildkitd-flags: --debug
-          cache-binary: false
-      - name: Build and test fixed full-source FPM
+      - name: Build and test both OPcache modes without publication credentials
         run: bash scripts/ci-container.sh '${{ matrix.series }}'
-      - name: Record result
-        if: always()
-        run: |
-          echo 'Series-specific build and runtime result: ${{ job.status }}' >> "$GITHUB_STEP_SUMMARY"
-          test ! -f out/fpm-test.json || cat out/fpm-test.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish only this exact tested Docker image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/publish-verified.sh fpm '${{ matrix.series }}'

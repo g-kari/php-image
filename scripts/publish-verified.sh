@@ -3,11 +3,13 @@
 set -euo pipefail
 target="${1:?}"; series="${2:?}"
 [[ "$target" = al2 || "$target" = fpm ]]
-[[ "$series" = 7.4 || "$series" = 8.0 || "$series" = 8.1 ]]
+[[ "$series" = 7.4 || "$series" = 8.0 || "$series" = 8.1 || ( "$series" = 8.2 && "$target" = al2 ) ]]
 [[ "${GITHUB_REPOSITORY:?}" = g-kari/php-image ]]
 [[ "${GITHUB_SHA:?}" =~ ^[0-9a-f]{40}$ ]]
 short="${GITHUB_SHA:0:12}"
 release_tag="$target-$series-$short"
+kind="minimal EOL mitigation"
+if [[ "$series" = 8.2 ]]; then kind="official 8.2.35 security release"; fi
 test -s out/fpm-test.json
 test -s out/provenance.json
 test -s out/sbom.spdx.json
@@ -16,7 +18,7 @@ import json,os
 if not __debug__: raise RuntimeError("Optimized Python verification forbidden")
 p=json.load(open("out/provenance.json"))
 if p["recipe_commit"] != os.environ["GITHUB_SHA"]: raise RuntimeError("Wrong recipe commit")
-if not json.load(open("out/fpm-test.json"))["oom_worker_replaced"]: raise RuntimeError("Missing OOM gate")
+if not json.load(open("out/fpm-test.json"))["oom_recovery_passed"]: raise RuntimeError("Missing OOM recovery gate")
 PY
 if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
  echo "Release already exists; refusing to overwrite or assume an incomplete upload succeeded." >&2
@@ -69,14 +71,16 @@ if grep -IRnE --exclude='*.rpm' --exclude='*.gz' --exclude='SHA256SUMS' \
 fi
 cp NOTICE.md out/NOTICE.md
 cat > out/RELEASE-NOTES.md <<EOF
-# $target PHP $series mitigation build ($short)
+# $target PHP $series $kind ($short)
 
 Only this series/CPU build and bounded runtime checks passed for this artifact.
 Recipe commit: $GITHUB_SHA
 Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
 
 The official PHP source commit is recorded in source.json and provenance.json.
-This is a minimal EOL mitigation for CVE-2026-109618/109619, not renewed upstream or OS support.
+PHP 7.4/8.0/8.1: minimal EOL mitigation for CVE-2026-109618/109619, not renewed support.
+AL2 PHP 8.2: official signed PHP 8.2.35 security release, independently built for an EOL OS.
+No build restores Amazon Linux 2 or old Debian security maintenance.
 It is not a full test-suite pass or an application compatibility guarantee.
 AL2 packages are unsigned, separate-prefix packages, not AWS replacements.
 AL2 systemd unit/packaged Unix-socket activation remains untested here.
@@ -91,7 +95,7 @@ EOF
 # Draft first. Public release only after every asset upload is present.
 assert_current_head
 gh release create "$release_tag" out/* --repo "$GITHUB_REPOSITORY" \
- --target "$GITHUB_SHA" --draft --prerelease --title "$target PHP $series mitigation ($short)" \
+ --target "$GITHUB_SHA" --draft --prerelease --title "$target PHP $series $kind ($short)" \
  --notes-file out/RELEASE-NOTES.md
 gh api "repos/$GITHUB_REPOSITORY/releases/tags/$release_tag" > release-assets.json
 python3 - <<'PY'

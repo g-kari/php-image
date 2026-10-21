@@ -1,10 +1,10 @@
 %global debug_package %{nil}
 %global shortsha %(echo %{source_sha} | cut -c1-8)
-%global prefix /opt/php-mitigation/%{series}-%{shortsha}-%{build_id}
+%global prefix %{prefix_root}/%{series}-%{shortsha}-%{build_id}
 Name: %{package_name}
 Version: %{source_version}
-Release: 0.mitigation.%{build_id}%{?dist}
-Summary: Independently packaged EOL PHP with narrowly scoped upstream mitigations
+Release: %{release_kind}.%{build_id}%{?dist}
+Summary: Independently packaged PHP security build at a separate prefix
 License: PHP and Zend and BSD
 URL: https://github.com/g-kari/php-image
 Source0: php-%{series}.tar
@@ -16,15 +16,15 @@ Requires: ca-certificates
 AutoReqProv: yes
 
 %description
-Full fixed upstream tree for CVE-2026-109618 and CVE-2026-109619.
-This is an independent prefix, not an AWS RPM replacement or renewed support.
+%{support_note}
+This is an independent prefix, not an AWS RPM replacement.
 No production service is enabled or started by package installation.
 
 %prep
-%setup -q -n php-src
+%setup -q -n %{source_dir}
 
 %build
-./buildconf --force
+test -x configure || ./buildconf --force
 export CFLAGS="%{optflags} -fstack-protector-strong -fPIC"
 export LDFLAGS="-Wl,-z,relro -Wl,-z,now"
 ./configure --prefix=%{prefix} \
@@ -38,7 +38,7 @@ export LDFLAGS="-Wl,-z,relro -Wl,-z,now"
 make %{?_smp_mflags}
 
 %check
-python3 %{SOURCE2} sapi/cli/php
+python3 %{SOURCE2} sapi/cli/php %{series}
 
 %install
 make install INSTALL_ROOT=%{buildroot}
@@ -50,7 +50,7 @@ zend_extension=opcache.so
 EOF
 cat > %{buildroot}/etc/%{name}/conf.d/20-session.ini <<'EOF'
 session.save_path=/var/lib/%{name}/sessions
-; Upstream EOL mitigation disables upload-progress callbacks in source.
+; Consult source.json and the per-series support notes for upload-progress behavior.
 EOF
 cat > %{buildroot}/etc/%{name}/php-fpm.conf <<'EOF'
 [global]
@@ -72,7 +72,7 @@ EOF
 mkdir -p %{buildroot}/usr/lib/systemd/system
 cat > %{buildroot}/usr/lib/systemd/system/%{name}.service <<'EOF'
 [Unit]
-Description=Independent EOL PHP %{series} FPM mitigation build
+Description=Independent PHP %{series} security build
 After=network.target
 [Service]
 Type=simple

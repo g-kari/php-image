@@ -45,3 +45,7 @@ RPM は AWS の PHP を上書きせず、独立した package/prefix/config/serv
 必要なら同梱 SRPM を既存の承認済み署名・ビルド手順で再構築してください。
 
 これらは限定した回帰確認です。実アプリ、外部 DB/TLS、全拡張、全 upstream テストや実ホスト systemd/socket の動作を保証しません。
+
+## 追加の AL2 PHP 8.2
+
+8.2 は上記 EOL 最小緩和ツリーとは別で、通常の公式セキュリティリリース PHP 8.2.35 です。source.json の kind=official-release、distribution_sha256、verified_signer と固定リリースの情報を照合してください。公式 tar.xz の SHA256 は 5737b98601fe5ab1b8c5db0c82ed3158acb9283ed3081ffe2faffb9ac81455e6 です。8.2 専用テストは通常のメモリ制限超過で exit255 と shutdown callback を期待し、旧系列の exit1/コールバック無実行と混同しません。

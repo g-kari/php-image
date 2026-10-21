@@ -19,8 +19,8 @@ for _ in $(seq 1 120); do
  test "$(docker inspect -f '{{.State.Running}}' "$cid")" = true
  sleep 2
 done
-python3 tests/fpm.py 19000 | tee out/fpm-test.json
-prefix="$(python3 -c 'import json,sys; m=json.load(open("sources/php-"+sys.argv[1]+".json")); print("/opt/php-mitigation/"+sys.argv[1]+"-"+m["sha"][:8]+"-"+sys.argv[2])' "$series" "$GITHUB_RUN_NUMBER")"
+python3 tests/fpm.py 19000 enabled "$series" | tee out/fpm-test.json
+prefix="$(python3 -c 'import json,sys; m=json.load(open("sources/php-"+sys.argv[1]+".json")); print(m["prefix_root"]+"/"+sys.argv[1]+"-"+m["sha"][:8]+"-"+sys.argv[2])' "$series" "$GITHUB_RUN_NUMBER")"
 docker exec "$cid" "$prefix/bin/php" -d opcache.enable_cli=1 /tests/runtime.php al2 | tee out/runtime-functions.json
 docker exec "$cid" sh -c 'rpm -qa | sort' > out/runtime-rpms.txt
 bash scripts/install-syft.sh
@@ -34,7 +34,7 @@ import json,os,pathlib,sys
 out=pathlib.Path("out")
 (out/"provenance.json").write_text(json.dumps({"series":sys.argv[1],"architecture":"x86_64",
 "recipe_commit":os.environ["GITHUB_SHA"],"run":os.environ["GITHUB_SERVER_URL"]+"/"+os.environ["GITHUB_REPOSITORY"]+"/actions/runs/"+os.environ["GITHUB_RUN_ID"],
-"source":json.load(open(out/"source.json")),"tests":["CLI functional","CLI OOM exit without shutdown callback","RPM dependency installation","glibc unchanged","FPM config","FPM OPcache + session worker reuse","multipart upload","OOM worker replacement"],"limits":["not full upstream test suite","not application compatibility proof","unsigned RPM","systemd unit and packaged Unix-socket activation not executed","no renewed upstream or OS support"]},indent=2)+"\n")
+"source":json.load(open(out/"source.json")),"oom_profile":"normal supported release" if sys.argv[1]=="8.2" else "minimal EOL mitigation","tests":["CLI functional","CLI OOM exit/shutdown behavior matches the series-specific source profile","RPM dependency installation","glibc unchanged","FPM config","FPM OPcache + session worker reuse","multipart upload","FPM OOM recovery and source-profile worker behavior"],"limits":["not full upstream test suite","not application compatibility proof","unsigned RPM","systemd unit and packaged Unix-socket activation not executed","no renewed upstream or OS support"]},indent=2)+"\n")
 PY
 docker stop -t 10 "$cid" >/dev/null
 docker logs "$cid" > out/runtime.log 2>&1

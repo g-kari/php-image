@@ -1,6 +1,6 @@
 # Legacy PHP mitigation builds
 
-Amazon Linux 2 PHP 7.4 / 8.0 / 8.1 self-build RPMs and patched PHP-FPM container images.
+Amazon Linux 2 PHP 7.4 / 8.0 / 8.1 / 8.2 self-build RPMs, plus non-AL2 PHP 7.4 / 8.0 / 8.1 FPM container images.
 
 **Build implementation and independent review are in progress. No binary or container is currently claimed as tested or published.**
 
@@ -33,7 +33,7 @@ The two deliverables are separate:
 
 Build shell scripts under `al2/` are disposable-container recipes. **Never execute them directly on a production host.** The CI wrapper installs build tools only in a disposable container, compiles as an unprivileged builder, stages installation with INSTALL_ROOT, then installs/tests the RPM in a different fresh AL2 container. No host Docker socket is mounted inside the build container.
 
-CI is limited to standard public GitHub-hosted runners. Test runs do not publish a binary. Release publication will use only the repository-scoped, job-lifetime GITHUB_TOKEN, not a PAT or new signing key.
+CI is limited to standard public GitHub-hosted runners. Pull-request/manual verification is read-only. Trusted main pushes run independent per-series publish jobs: build, test, then publish those same artifacts immediately if every local gate passed. A failure in another series does not block a successful one. Publication uses only the repository-scoped, job-lifetime GITHUB_TOKEN in the publication step, not a PAT or new signing key. A final-head check runs before each external write.
 
 ### Native package compatibility
 
@@ -77,6 +77,16 @@ The AL2 FPM smoke test does not start systemd inside a container. It validates t
 
 Additional bounded runtime checks exercise OpenSSL digest/randomness, curl version lookup, in-memory PDO SQLite and actual OPcache compile/cache lookup. Docker additionally tests mbstring/sodium and inherited PEAR/PECL version commands; AL2 additionally tests bcmath/mysqli availability. These are local functional checks, not a live DB/TLS integration test.
 
-The historical official 7.4/8.0 FPM images shipped OPcache disabled. These mitigation images explicitly enable the freshly rebuilt OPcache module, a deliberate documented configuration difference. Apart from that expected module-list addition, CI compares the inherited and rebuilt module inventories.
+The historical official 7.4/8.0 FPM images shipped OPcache disabled; these images preserve that default. CI enables the rebuilt module only in a dedicated test process and separately exercises an OPcache-disabled FPM configuration. Default inherited and rebuilt module inventories must match. The 8.1 image preserves its original enabled default.
 
 日本語の [パッチ適用の確認方法と証跡](VERIFY.md) を参照してください。バージョン文字列だけでなく、完全な固定 source SHA と実行バイナリ/成果物の checksum を照合できます。
+
+## AL2 PHP 8.2 is a different deliverable
+
+AL2 PHP 8.2 is built from the normal official **PHP 8.2.35 security release**, not an EOL minimal-mitigation branch. Its official distribution SHA256 and allowed signing fingerprints are pinned in sources.lock.json; CI verifies both the downloaded archive hash and its detached GPG signature before building.
+
+Package `php82-security` uses `/opt/php-security/8.2-SOURCE8-BUILD_ID` and independent `/etc/php82-security` configuration. It still does not turn EOL Amazon Linux 2 into a maintained OS.
+
+The normal 8.2 security fix has different OOM/session behavior. Its dedicated profile expects ordinary memory_limit failure status 255 and the shutdown callback, then checks FPM remains healthy; it does not require killing/replacing that worker or disabling upload-progress callbacks. Legacy 7.4/8.0/8.1 profiles retain their distinct exit-1/no-shutdown/replacement expectations. A malloc/system-wide OOM is a different failure mode.
+
+There is **no Docker 8.2 artifact in this request**. The distribution matrix has four AL2 native versions and three non-AL2 FPM images.

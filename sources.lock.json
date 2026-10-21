@@ -6,17 +6,43 @@
     "7.4": {
       "sha": "712e60f9edfd03f0960fc4fc3c2c375f42b90aa2",
       "version": "7.4.34",
-      "package": "php74-mitigation"
+      "package": "php74-mitigation",
+      "kind": "eol-mitigation",
+      "prefix_root": "/opt/php-mitigation",
+      "source_dir": "php-src"
     },
     "8.1": {
       "sha": "1d7dec178a094e6e75b229ce22754045f8c6070a",
       "version": "8.1.34",
-      "package": "php81-mitigation"
+      "package": "php81-mitigation",
+      "kind": "eol-mitigation",
+      "prefix_root": "/opt/php-mitigation",
+      "source_dir": "php-src"
     },
     "8.0": {
       "sha": "82f8f31b16a035c1b67cc253e79f7cc288f4cc20",
       "version": "8.0.30",
-      "package": "php80-mitigation"
+      "package": "php80-mitigation",
+      "kind": "eol-mitigation",
+      "prefix_root": "/opt/php-mitigation",
+      "source_dir": "php-src"
+    },
+    "8.2": {
+      "sha": "09a9f29a0402bb87bb448cb2e3149ccbec1699c6",
+      "version": "8.2.35",
+      "package": "php82-security",
+      "kind": "official-release",
+      "prefix_root": "/opt/php-security",
+      "source_dir": "php-8.2.35",
+      "url": "https://www.php.net/distributions/php-8.2.35.tar.xz",
+      "signature_url": "https://www.php.net/distributions/php-8.2.35.tar.xz.asc",
+      "distribution_sha256": "5737b98601fe5ab1b8c5db0c82ed3158acb9283ed3081ffe2faffb9ac81455e6",
+      "allowed_signing_fingerprints": [
+        "39B641343D8C104B2B146DC3F9C39DC0B9698544",
+        "E60913E4DF209907D8E30D96659A97C9CF2A795A",
+        "1198C0117593497A5EC5C199286AF1F9897469DC"
+      ],
+      "evidence": "https://github.com/php/php-src/releases/tag/php-8.2.35"
     }
   },
   "al2": {

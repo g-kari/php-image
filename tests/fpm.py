@@ -3,6 +3,8 @@
 import json, socket, struct, sys, time
 if not __debug__: raise RuntimeError("Optimized Python would disable verification; refusing")
 host, port = "127.0.0.1", int(sys.argv[1])
+expected_opcache = len(sys.argv) < 3 or sys.argv[2] == "enabled"
+normal_release = len(sys.argv) > 3 and sys.argv[3] == "8.2"
 def record(t, content):
     pad = (-len(content)) % 8
     return struct.pack("!BBHHBB", 1,t,1,len(content),pad,0)+content+b"\0"*pad
@@ -44,26 +46,27 @@ for _ in range(30):
     try: h,first=parse(request()[0]);break
     except (OSError,ValueError):time.sleep(1)
 else: raise AssertionError("FPM did not become ready")
-assert first["ok"] and first["opcache"],first
+assert first["ok"] and first["opcache"] == expected_opcache,first
 cookie=next((s.split(":",1)[1].strip().split(";")[0] for s in h.split("\r\n") if s.lower().startswith("set-cookie:")),None)
 assert cookie
 for _ in range(10):
     _,got=parse(request(cookie=cookie)[0])
-    assert got["pid"]==first["pid"] and got["opcache_cached"],got
+    assert got["pid"]==first["pid"],got
+    assert got["opcache_cached"] == expected_opcache,got
 assert got["counter"]==11,got
 body=(b"--testbound\r\nContent-Disposition: form-data; name=\"PHP_SESSION_UPLOAD_PROGRESS\"\r\n\r\nprogress\r\n"
       b"--testbound\r\nContent-Disposition: form-data; name=\"upload\"; filename=\"tiny.txt\"\r\nContent-Type: text/plain\r\n\r\nhello\r\n--testbound--\r\n")
 _,upload=parse(request(body=body,content_type="multipart/form-data; boundary=testbound",cookie=cookie)[0])
 assert upload["files"]==["upload"],upload
 data,err=request(query="oom=1")
-assert b"SHUTDOWN-MUST-NOT-RUN" not in data+err,(data,err)
+assert (b"SHUTDOWN-MUST-NOT-RUN" in data+err) == normal_release,(data,err)
 for _ in range(20):
     try:
         _,after=parse(request()[0])
-        if after["pid"]!=first["pid"]:break
+        if normal_release or after["pid"]!=first["pid"]:break
     except (OSError,ValueError):pass
     time.sleep(0.5)
 else:raise AssertionError("OOM worker was not replaced")
-assert after["ok"] and after["opcache"]
-print(json.dumps({"fpm_reuse_requests":10,"multipart_upload":"passed","oom_worker_replaced":True,
-                  "opcache_loaded":True,"before_pid":first["pid"],"after_pid":after["pid"]}))
+assert after["ok"] and after["opcache"] == expected_opcache
+print(json.dumps({"fpm_reuse_requests":10,"multipart_upload":"passed","oom_worker_replaced":after["pid"]!=first["pid"],"oom_recovery_passed":True,"normal_release_profile":normal_release,
+                  "opcache_loaded":expected_opcache,"before_pid":first["pid"],"after_pid":after["pid"]}))

@@ -5,12 +5,15 @@ case "$series" in
   7.4) sha=712e60f9; pkg=php74-mitigation;;
   8.0) sha=82f8f31b; pkg=php80-mitigation;;
   8.1) sha=1d7dec17; pkg=php81-mitigation;;
+  8.2) sha=09a9f29a; pkg=php82-security;;
   *) exit 2;;
 esac
 before="$(rpm -q glibc)"
 yum localinstall -y /out/"$pkg"-*.x86_64.rpm
 test "$(rpm -q glibc)" = "$before"
-prefix="/opt/php-mitigation/$series-$sha-$build_id"
+prefix_root=/opt/php-mitigation
+if [[ "$series" = 8.2 ]]; then prefix_root=/opt/php-security; fi
+prefix="$prefix_root/$series-$sha-$build_id"
 "$prefix/bin/php" --version
 "$prefix/bin/php" --ini
 "$prefix/bin/php" -m
