@@ -3,18 +3,30 @@ set -euo pipefail
 series="${1:?}"
 mkdir -p out
 python3 scripts/prepare-source.py "$series"
+base="$(python3 -c 'import json,sys;print(json.load(open("sources.lock.json"))["containers"][sys.argv[1]]["base"])' "$series")"
+docker pull --platform linux/amd64 "$base"
+docker run --rm --network none "$base" php -m | sort > out/base-php-modules.txt
+docker run --rm --network none "$base" php-config --configure-options > out/base-configure-options.txt
+archive_sha="$(python3 -c 'import json,sys;print(json.load(open("sources/php-"+sys.argv[1]+".json"))["archive_sha256"])' "$series")"
 docker buildx build --platform linux/amd64 --load --progress=plain \
+ --build-arg RECIPE_REVISION="${GITHUB_SHA:?}" --build-arg SOURCE_ARCHIVE_SHA256="$archive_sha" \
  -f "docker/php${series/./}/Dockerfile" -t php-mitigation:test . 2>&1 | tee out/build.log
 docker run --rm --network none php-mitigation:test php --version
 docker run --rm --network none -v "$PWD/scripts:/tests:ro" php-mitigation:test php -r 'if (!extension_loaded("Zend OPcache") || !extension_loaded("sodium")) exit(1);'
 cid="$(docker run -d --memory 256m --cpus 2 --pids-limit 64 -p 127.0.0.1:19000:9000 \
  -v "$PWD/tests:/tests:ro" php-mitigation:test php-fpm -F -y /tests/fpm.conf)"
-trap 'docker logs "$cid" > out/runtime.log 2>&1; docker rm -f "$cid" >/dev/null' EXIT
+trap 'if [ -n "${cid:-}" ]; then docker logs "$cid" > out/runtime-failure.log 2>&1; docker rm -f "$cid" >/dev/null; fi' EXIT
 python3 tests/fpm.py 19000 | tee out/fpm-test.json
+docker exec "$cid" php -d opcache.enable_cli=1 /tests/runtime.php docker | tee out/runtime-functions.json
+docker exec "$cid" pear version > out/pear-version.txt
+docker exec "$cid" pecl version > out/pecl-version.txt
 docker exec "$cid" php --ini > out/php-ini.txt
-docker exec "$cid" php -m > out/php-modules.txt
+docker exec "$cid" php -m | sort > out/php-modules.txt
+diff -u out/base-php-modules.txt out/php-modules.txt
 docker exec "$cid" sh -c 'cat /usr/local/share/php-mitigation/source.json' > out/source.json
 docker exec "$cid" sh -c 'sha256sum /usr/local/bin/php /usr/local/sbin/php-fpm' > out/binaries.sha256
+bash scripts/install-syft.sh
+tools/syft docker:php-mitigation:test -o spdx-json=out/sbom.spdx.json
 docker image inspect php-mitigation:test > out/image-inspect.json
 docker history --no-trunc php-mitigation:test > out/image-history.txt
 docker logs "$cid" > out/runtime.log 2>&1

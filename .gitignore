@@ -3,3 +3,4 @@ out/
 *.tar
 *.log
 __pycache__/
+tools/

@@ -49,7 +49,7 @@ cookie=next((s.split(":",1)[1].strip().split(";")[0] for s in h.split("\r\n") if
 assert cookie
 for _ in range(10):
     _,got=parse(request(cookie=cookie)[0])
-    assert got["pid"]==first["pid"],got
+    assert got["pid"]==first["pid"] and got["opcache_cached"],got
 assert got["counter"]==11,got
 body=(b"--testbound\r\nContent-Disposition: form-data; name=\"PHP_SESSION_UPLOAD_PROGRESS\"\r\n\r\nprogress\r\n"
       b"--testbound\r\nContent-Disposition: form-data; name=\"upload\"; filename=\"tiny.txt\"\r\nContent-Type: text/plain\r\n\r\nhello\r\n--testbound--\r\n")

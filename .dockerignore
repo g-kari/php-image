@@ -1,0 +1,5 @@
+.git
+out
+tools
+sources/git-*
+__pycache__

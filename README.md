@@ -62,3 +62,17 @@ The bounded gates cover compilation, CLI data handling, deliberate OOM exit with
 They do not prove exploit resistance, execute the full upstream suite, test every extension/application, or directly prove that upload-progress callbacks are absent at runtime. Complete fixed-tree provenance is recorded separately. No ARM/multi-architecture claim is made.
 
 Bullseye security packages moved to the official Debian archive after Debian 11 LTS ended on 2026-08-31. The 7.4/8.0 recipes use that official archive without disabling signature verification or date validation. This is frozen historical dependency availability, not continuing security support. See [Debian notice](https://www.debian.org/News/2026/20260831).
+
+SBOM generation uses upstream Anchore Syft 1.55.0, verified against the pinned official release-asset SHA256. Build provenance JSON is descriptive evidence, not a new cryptographic signing identity or a security certification.
+
+### Docker usage boundaries
+
+Do not publish FastCGI port 9000 directly to the Internet. EXPOSE is documentation, not a request to publish that port. Use an isolated private container network or a Unix socket and an appropriately restricted web-server frontend. CI binds its test port only to 127.0.0.1.
+
+The patched source is a Git tree, not a newly signed official PHP release tarball. The final image clears inherited PHP_URL, PHP_ASC_URL and PHP_SHA256 release-download values. PHPMITIGATION_SOURCE_SHA and PHPMITIGATION_SOURCE_ARCHIVE_SHA256 identify the rebuilt tree/archive; OCI revision identifies this repository's recipe commit. PHP_VERSION is aligned with the generated binary's source version, but is not proof of mitigation.
+
+PEAR installation is not re-run from the network during rebuilding. Inherited PEAR/PECL tools from the pinned official base are not promoted as newly rebuilt components. Rebuild and compatibility-test additional extensions against the fixed source and the exact resulting image; do not mount an old extension directory or OPcache file cache.
+
+The AL2 FPM smoke test does not start systemd inside a container. It validates the packaged FPM configuration syntax, then runs a dedicated test-only TCP configuration. Systemd unit activation, the packaged Unix socket, real-host RuntimeDirectory behavior and an application's actual handler remain deployment-site tests.
+
+Additional bounded runtime checks exercise OpenSSL digest/randomness, curl version lookup, in-memory PDO SQLite and actual OPcache compile/cache lookup. Docker additionally tests mbstring/sodium and inherited PEAR/PECL version commands; AL2 additionally tests bcmath/mysqli availability. These are local functional checks, not a live DB/TLS integration test.

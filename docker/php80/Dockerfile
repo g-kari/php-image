@@ -29,9 +29,17 @@ RUN set -eux; \
     dpkg-query -W > /stage/usr/local/share/php-mitigation/build-dpkg.txt; \
     cp /etc/os-release /stage/usr/local/share/php-mitigation/base-os-release; \
     find /stage/usr/local -type f -name '*.a' -delete; \
-    sha256sum /stage/usr/local/bin/php /stage/usr/local/sbin/php-fpm > /stage/usr/local/share/php-mitigation/binaries.sha256
+    cd /stage; find usr/local/bin/php usr/local/sbin/php-fpm usr/local/lib/php/extensions -type f -print0 | sort -z | xargs -0 sha256sum > usr/local/share/php-mitigation/binaries.sha256
 
 FROM docker.io/library/php:8.0-fpm@sha256:b07b8df17506cdb370945d942c5f12356af2d078005ded8b195f7e17129de9d1
+ARG RECIPE_REVISION
+ARG SOURCE_ARCHIVE_SHA256
+ENV PHP_VERSION="8.0.30" PHP_URL="" PHP_ASC_URL="" PHP_SHA256="" \
+    PHPMITIGATION_SOURCE_SHA="82f8f31b16a035c1b67cc253e79f7cc288f4cc20" \
+    PHPMITIGATION_SOURCE_ARCHIVE_SHA256="$SOURCE_ARCHIVE_SHA256"
+LABEL org.opencontainers.image.revision="$RECIPE_REVISION" \
+      io.php-mitigation.source-sha="82f8f31b16a035c1b67cc253e79f7cc288f4cc20" \
+      io.php-mitigation.source-archive-sha256="$SOURCE_ARCHIVE_SHA256"
 LABEL org.opencontainers.image.source="https://github.com/g-kari/php-image" \
       org.opencontainers.image.description="PHP 8.0 FPM with upstream minimal EOL mitigations for CVE-2026-109618 and CVE-2026-109619; not renewed support" \
       org.opencontainers.image.licenses="PHP-3.01 AND Zend-2.0"
@@ -47,6 +55,10 @@ RUN set -eux; \
     rm /usr/src/php-mitigation.tar; \
     rm -rf /usr/src/php; \
     dpkg-query -W > /usr/local/share/php-mitigation/runtime-dpkg.txt; \
+    test -n "$PHPMITIGATION_SOURCE_ARCHIVE_SHA256"; \
+    test "$(xz -dc /usr/src/php.tar.xz | sha256sum | cut -d' ' -f1)" = "$PHPMITIGATION_SOURCE_ARCHIVE_SHA256"; \
+    php -r 'if (PHP_VERSION !== getenv("PHP_VERSION")) exit(1);'; \
+    cd /; sha256sum -c /usr/local/share/php-mitigation/binaries.sha256; \
     php --version; php-fpm -t; \
     php -r 'if (!extension_loaded("Zend OPcache") || !extension_loaded("sodium")) exit(1);'
 STOPSIGNAL SIGQUIT
