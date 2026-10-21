@@ -33,10 +33,10 @@ jobs:
         run: |
           package="$(python3 -c 'import json; print(json.load(open("artifacts/target.json"))["package"])')"
           source_sha="$(python3 -c 'import json; print(json.load(open("artifacts/target.json"))["source_sha"])')"
-          docker run --rm --platform linux/amd64 --memory 1g --cpus 2 --pids-limit 128 \
+          docker run --rm -i --platform linux/amd64 --memory 1g --cpus 2 --pids-limit 128 \
             -v "$PWD/artifacts:/artifacts:ro" \
             'docker.io/library/amazonlinux:2@sha256:f86b99704b49b2fde6bf42b4c5257fcb0b1e0946509da5d6cea08c4227618433' \
-            bash -s -- "$package" "$source_sha" <<'SH'
+            bash -s -- "$package" "$source_sha" <<'SH' | tee inventory.txt
           set -euo pipefail
           pkg="$1"; expected_sha="$2"
           echo RPM_PAYLOAD_BEGIN
@@ -62,3 +62,5 @@ jobs:
           "$cli" -r '$m=json_decode(file_get_contents($argv[1]),true); if($m["sha"]!==$argv[2])exit(1);$e=get_loaded_extensions();sort($e);echo "ACTUAL_AL2_INVENTORY=",json_encode(["version"=>PHP_VERSION,"cli"=>PHP_BINARY,"extensions"=>$e,"source_sha"=>$m["sha"]]),PHP_EOL;' "$prefix/share/mitigation/source.json" "$expected_sha"
           printf 'ACTUAL_PAYLOAD_PATHS cli=%s fpm=%s opcache=%s service=%s\n' "$cli" "$fpm" "$opcache" "/usr/lib/systemd/system/$pkg.service"
           SH
+          grep -q '^ACTUAL_AL2_INVENTORY=' inventory.txt
+          grep -q '^ACTUAL_PAYLOAD_PATHS cli=' inventory.txt
