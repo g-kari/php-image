@@ -22,6 +22,11 @@ done
 python3 tests/fpm.py 19000 enabled "$series" | tee out/fpm-test.json
 prefix="$(python3 -c 'import json,sys; m=json.load(open("sources/php-"+sys.argv[1]+".json")); print(m["prefix_root"]+"/"+sys.argv[1]+"-"+m["sha"][:8]+"-"+sys.argv[2])' "$series" "$GITHUB_RUN_NUMBER")"
 docker exec "$cid" "$prefix/bin/php" -d opcache.enable_cli=1 /tests/runtime.php al2 | tee out/runtime-functions.json
+if [[ "$series" = 8.2 ]]; then
+ python3 scripts/check-openssl-linkage.py "$cid" "$prefix"
+ docker exec "$cid" timeout 65 "$prefix/bin/php" /tests/tls-smoke.php curl-first | tee out/tls-smoke-curl-first.json
+ docker exec "$cid" timeout 65 "$prefix/bin/php" /tests/tls-smoke.php stream-first | tee out/tls-smoke-stream-first.json
+fi
 docker exec "$cid" sh -c 'rpm -qa | sort' > out/runtime-rpms.txt
 bash scripts/install-syft.sh
 docker commit "$cid" php-al2-runtime:scan >/dev/null
