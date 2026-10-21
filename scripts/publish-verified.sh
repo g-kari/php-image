@@ -20,7 +20,8 @@ p=json.load(open("out/provenance.json"))
 if p["recipe_commit"] != os.environ["GITHUB_SHA"]: raise RuntimeError("Wrong recipe commit")
 if not json.load(open("out/fpm-test.json"))["oom_recovery_passed"]: raise RuntimeError("Missing OOM recovery gate")
 PY
-if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+existing="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | select(.tag_name == "'$release_tag'") | .id')"
+if [[ -n "$existing" ]]; then
  echo "Release already exists; refusing to overwrite or assume an incomplete upload succeeded." >&2
  exit 1
 fi
@@ -97,7 +98,9 @@ assert_current_head
 gh release create "$release_tag" out/* --repo "$GITHUB_REPOSITORY" \
  --target "$GITHUB_SHA" --draft --prerelease --title "$target PHP $series $kind ($short)" \
  --notes-file out/RELEASE-NOTES.md
-gh api "repos/$GITHUB_REPOSITORY/releases/tags/$release_tag" > release-assets.json
+release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | select(.tag_name == "'$release_tag'" and .target_commitish == "'$GITHUB_SHA'") | .id')"
+[[ "$release_id" =~ ^[0-9]+$ ]]
+gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" > release-assets.json
 python3 - <<'PY'
 import hashlib,json,pathlib
 if not __debug__: raise RuntimeError("Optimized Python verification forbidden")
@@ -111,5 +114,5 @@ for name,path in expected.items():
     if item.get("digest") != "sha256:"+sha: raise RuntimeError("Asset digest missing/mismatch: "+name)
 PY
 assert_current_head
-gh release edit "$release_tag" --repo "$GITHUB_REPOSITORY" --draft=false
+gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" -F draft=false --jq .html_url
 echo "Published verified $target PHP $series Release: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$release_tag"

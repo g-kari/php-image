@@ -2,9 +2,9 @@
 
 Amazon Linux 2 PHP 7.4 / 8.0 / 8.1 / 8.2 self-build RPMs, plus non-AL2 PHP 7.4 / 8.0 / 8.1 FPM container images.
 
-**Build implementation and independent review are in progress. No binary or container is currently claimed as tested or published.**
+**AL2 and non-AL2 FPM 7.4/8.0/8.1 are published after independent review and bounded build/runtime checks; all three registry images passed anonymous digest pulls. AL2 8.2 is still a separate in-progress deliverable. See the published artifact links below.**
 
-This project packages the PHP project's **minimal EOL mitigations** for CVE-2026-109618 and CVE-2026-109619. It does not restore upstream support, fix every known vulnerability, or make Amazon Linux 2 or old Debian releases supported. Upgrade to maintained PHP and OS versions as soon as possible.
+For PHP 7.4/8.0/8.1, this project packages the PHP project's **minimal EOL mitigations** for CVE-2026-109618 and CVE-2026-109619. It does not restore upstream support, fix every known vulnerability, or make Amazon Linux 2 or old Debian releases supported. Upgrade to maintained PHP and OS versions as soon as possible.
 
 ## Scope
 
@@ -57,7 +57,7 @@ A signed versioned yum repository is deferred until an existing approved signing
 
 ### Verification limits
 
-The bounded gates cover compilation, CLI data handling, deliberate OOM exit without a shutdown callback, install-time dependency resolution, FPM config, OPcache loading, session requests in the same worker, ordinary multipart upload, and replacement of an OOM-killed worker.
+The legacy 7.4/8.0/8.1 bounded gates cover compilation, CLI data handling, deliberate OOM exit without a shutdown callback, install-time dependency resolution, FPM config, OPcache loading, session requests in the same worker, ordinary multipart upload, and replacement of an OOM-killed worker. The separate 8.2 profile is described below.
 
 They do not prove exploit resistance, execute the full upstream suite, test every extension/application, or directly prove that upload-progress callbacks are absent at runtime. Complete fixed-tree provenance is recorded separately. No ARM/multi-architecture claim is made.
 
@@ -90,3 +90,19 @@ Package `php82-security` uses `/opt/php-security/8.2-SOURCE8-BUILD_ID` and indep
 The normal 8.2 security fix has different OOM/session behavior. Its dedicated profile expects ordinary memory_limit failure status 255 and the shutdown callback, then checks FPM remains healthy; it does not require killing/replacing that worker or disabling upload-progress callbacks. Legacy 7.4/8.0/8.1 profiles retain their distinct exit-1/no-shutdown/replacement expectations. A malloc/system-wide OOM is a different failure mode.
 
 There is **no Docker 8.2 artifact in this request**. The distribution matrix has four AL2 native versions and three non-AL2 FPM images.
+
+The AL2 8.2 builder selects the official openssl11-devel package instead of installing both conflicting development header sets. Build-local pkg-config aliases resolve openssl/libssl/libcrypto to the installed *11.pc metadata; the effective version/flags and RPM file list are recorded. No global metadata or symlinks are changed. Runtime uses versioned openssl11-libs alongside the pre-existing openssl-libs; CI requires the old runtime package and /usr/bin/openssl hash/presence to remain unchanged. The system OpenSSL is not replaced. The signed original 8.2 tar.xz and detached .asc are also Release assets.
+
+## Published initial artifacts
+
+The verified 7.4/8.0/8.1 artifacts are available now:
+- [AL2 PHP 7.4 RPM/SRPM](https://github.com/g-kari/php-image/releases/tag/al2-7.4-3e399dfb0453)
+- [AL2 PHP 8.0 RPM/SRPM](https://github.com/g-kari/php-image/releases/tag/al2-8.0-3e399dfb0453)
+- [AL2 PHP 8.1 RPM/SRPM](https://github.com/g-kari/php-image/releases/tag/al2-8.1-3e399dfb0453)
+- [Official-base FPM 7.4 image/evidence](https://github.com/g-kari/php-image/releases/tag/fpm-7.4-3e399dfb0453)
+- [Official-base FPM 8.0 image/evidence](https://github.com/g-kari/php-image/releases/tag/fpm-8.0-3e399dfb0453)
+- [Official-base FPM 8.1 image/evidence](https://github.com/g-kari/php-image/releases/tag/fpm-8.1-3e399dfb0453)
+
+Public registry tags are `ghcr.io/g-kari/php-image:7.4-fpm-cve2026-3e399dfb0453`, `8.0-fpm-cve2026-3e399dfb0453`, and `8.1-fpm-cve2026-3e399dfb0453` under the same image name. Prefer the immutable digest in each Release's IMAGE.txt. [Recovery verification run](https://github.com/g-kari/php-image/actions/runs/39647881838) rechecked all delivered asset bytes; FPM anonymous digest pulls matched the tested image IDs, source SHAs and binary checksums. AL2 recovery reinstalled and retested the original RPM bytes without rebuilding. Original uploaded evidence is retained where replacement evidence was needed. These remain the official EOL minimal-mitigation builds described above, not general full-fix/support claims.
+
+AL2 8.2 is published only after its separate build/runtime/publication gates pass. The initial OpenSSL 1.0.2 build did not pass; the 8.2-only follow-up selects the official parallel OpenSSL 1.1 provider. The maintenance commit marker `[al2-8.2-only]` limits that follow-up to AL2 8.2 rather than rebuilding these six unchanged artifacts; it does not bypass any gate for the selected artifact.

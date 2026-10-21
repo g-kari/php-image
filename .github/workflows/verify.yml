@@ -47,7 +47,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        series: ['7.4', '8.0', '8.1', '8.2']
+        # Explicit maintenance marker avoids rebuilding six already-published, unchanged targets.
+        # It reduces the matrix only; all source/build/runtime/publication gates still run.
+        series: ${{ fromJSON(contains(github.event.head_commit.message, '[al2-8.2-only]') && '["8.2"]' || '["7.4","8.0","8.1","8.2"]') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -59,7 +61,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/publish-verified.sh al2 '${{ matrix.series }}'
   publish-fpm:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'g-kari/php-image'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'g-kari/php-image' && !contains(github.event.head_commit.message, '[al2-8.2-only]')
     name: Build test publish FPM PHP ${{ matrix.series }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60

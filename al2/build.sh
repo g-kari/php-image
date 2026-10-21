@@ -21,8 +21,10 @@ fi
 test "$(uname -m)" = x86_64
 . /etc/os-release
 test "$ID" = amzn && test "$VERSION_ID" = 2
+openssl_devel=openssl-devel
+if [[ "$series" = 8.2 ]]; then openssl_devel=openssl11-devel; fi
 yum install -y gcc gcc-c++ make autoconf bison re2c pkgconfig rpm-build \
- openssl-devel libxml2-devel libcurl-devel zlib-devel sqlite-devel python3
+ "$openssl_devel" libxml2-devel libcurl-devel zlib-devel sqlite-devel python3
 python3 - "$series" "$sha" <<'PY'
 import hashlib,json,sys
 if not __debug__: raise RuntimeError("Optimized Python verification is forbidden")
@@ -30,6 +32,10 @@ m=json.load(open("/work/sources/php-"+sys.argv[1]+".json"))
 assert m["sha"]==sys.argv[2]
 assert hashlib.sha256(open("/work/sources/php-"+sys.argv[1]+".tar","rb").read()).hexdigest()==m["archive_sha256"]
 PY
+if [[ "$series" = 8.2 ]]; then
+ pkg-config --atleast-version=1.1.1 openssl11
+ { pkg-config --modversion openssl11; pkg-config --cflags openssl11; pkg-config --libs openssl11; rpm -ql openssl11-devel; } > /out/php82-openssl11-build-provider.txt
+fi
 useradd -m builder
 mkdir -p /home/builder/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS} /out
 cp "/work/sources/php-$series.tar" "/work/sources/php-$series.json" /home/builder/rpmbuild/SOURCES/
@@ -43,6 +49,10 @@ chown -R builder:builder /home/builder/rpmbuild
 su - builder -c "rpmbuild -ba --define '_smp_mflags -j2' rpmbuild/SPECS/php-mitigation.spec"
 cp /home/builder/rpmbuild/RPMS/x86_64/*.rpm /home/builder/rpmbuild/SRPMS/*.rpm /out/
 cp /home/builder/rpmbuild/SPECS/php-mitigation.spec "/out/$package.spec"
+if [[ "$series" = 8.2 ]]; then cp /home/builder/rpmbuild/BUILD/php-8.2.35/php82-effective-openssl-provider.txt /out/; fi
 rpm -qa | sort > "/out/$package-build-rpms.txt"
 cp /etc/system-release "/out/$package-system-release.txt"
 cp "/work/sources/php-$series.json" "/out/$package-source.json"
+if [[ "$series" = 8.2 ]]; then
+ cp /work/sources/php-8.2.tar.xz /work/sources/php-8.2.tar.xz.asc /out/
+fi

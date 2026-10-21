@@ -11,7 +11,12 @@ Source0: php-%{series}.tar
 Source1: php-%{series}.json
 Source2: test-cli.py
 BuildRequires: gcc gcc-c++ make autoconf bison re2c pkgconfig python3
-BuildRequires: openssl-devel libxml2-devel libcurl-devel zlib-devel sqlite-devel
+%if "%{series}" == "8.2"
+BuildRequires: openssl11-devel
+%else
+BuildRequires: openssl-devel
+%endif
+BuildRequires: libxml2-devel libcurl-devel zlib-devel sqlite-devel
 Requires: ca-certificates
 AutoReqProv: yes
 
@@ -27,6 +32,21 @@ No production service is enabled or started by package installation.
 test -x configure || ./buildconf --force
 export CFLAGS="%{optflags} -fstack-protector-strong -fPIC"
 export LDFLAGS="-Wl,-z,relro -Wl,-z,now"
+if [ "%{series}" = 8.2 ]; then
+ pkg-config --atleast-version=1.1.1 openssl11
+ # Builder-local aliases only. Never replace system pkg-config metadata or libraries.
+ pcdir="$(pkg-config --variable=pcfiledir openssl11)"
+ private_pc="$PWD/.php82-pkgconfig"
+ mkdir -p "$private_pc"
+ for module in openssl libssl libcrypto; do
+  test -f "$pcdir/${module}11.pc"
+  ln -s "$pcdir/${module}11.pc" "$private_pc/$module.pc"
+ done
+ export PKG_CONFIG_PATH="$private_pc${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+ pkg-config --atleast-version=1.1.1 openssl
+ test "$(pkg-config --modversion openssl)" = "$(pkg-config --modversion openssl11)"
+ { pkg-config --modversion openssl; pkg-config --cflags openssl; pkg-config --libs openssl; } > php82-effective-openssl-provider.txt
+fi
 ./configure --prefix=%{prefix} \
  --with-config-file-path=/etc/%{name} \
  --with-config-file-scan-dir=/etc/%{name}/conf.d \
@@ -88,6 +108,9 @@ mkdir -p %{buildroot}%{prefix}/share/mitigation
 cp %{SOURCE1} %{buildroot}%{prefix}/share/mitigation/source.json
 sapi/cli/php -n -r 'echo json_encode(["version"=>PHP_VERSION,"version_id"=>PHP_VERSION_ID,"int_size"=>PHP_INT_SIZE,"zts"=>PHP_ZTS,"debug"=>PHP_DEBUG,"os"=>PHP_OS,"extensions"=>get_loaded_extensions()], JSON_PRETTY_PRINT), PHP_EOL;' > %{buildroot}%{prefix}/share/mitigation/php-build-info.txt
 cp config.nice %{buildroot}%{prefix}/share/mitigation/
+if [ "%{series}" = 8.2 ]; then
+ cp php82-effective-openssl-provider.txt %{buildroot}%{prefix}/share/mitigation/
+fi
 mkdir -p %{buildroot}%{_docdir}/%{name}
 # Preserve both licenses without a name collision.
 cp Zend/LICENSE %{buildroot}%{_docdir}/%{name}/LICENSE.Zend

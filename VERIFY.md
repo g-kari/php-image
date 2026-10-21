@@ -15,7 +15,7 @@ CVE-2026-109618 と CVE-2026-109619 に対する限定的な緩和策であり�
 
 ## 配布物に同梱する証跡
 
-- `source.json`: 完全な公式ソース SHA、tree SHA、実ビルド用 tar の SHA256。
+- `source.json`: 完全な公式ソース SHA、tree SHA、実ビルド用 tar の SHA256。通常リリースの 8.2 は Git archive ではなく署名済み配布 tar なので tree は null で、元 tar.xz と .asc も保存します。
 - `provenance.json`: このリポジトリのレシピ SHA、系列、CPU、CI URL、通過した試験と未検証範囲。
 - `binaries.sha256`: 実行した CLI/FPM の実バイト列の SHA256。
 - `sbom.spdx.json`: 実ビルド/実行環境の依存パッケージ一覧。

@@ -16,4 +16,4 @@ if ($profile === 'docker') {
     require_check(bcadd('1', '2') === '3', 'bcmath');
     require_check(function_exists('mysqli_init'), 'mysqli');
 }
-echo json_encode(['profile' => $profile, 'version' => PHP_VERSION, 'checks' => 'passed']), PHP_EOL;
+echo json_encode(['profile' => $profile, 'version' => PHP_VERSION, 'openssl' => OPENSSL_VERSION_TEXT, 'curl_ssl' => curl_version()['ssl_version'], 'checks' => 'passed']), PHP_EOL;
