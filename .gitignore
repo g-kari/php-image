@@ -1,0 +1,5 @@
+sources/
+out/
+*.tar
+*.log
+__pycache__/

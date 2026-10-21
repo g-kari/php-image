@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "upstream": "https://github.com/php/php-src",
+  "notice": "Official minimal mitigations for EOL versions, not renewed upstream support.",
+  "versions": {
+    "7.4": {
+      "sha": "712e60f9edfd03f0960fc4fc3c2c375f42b90aa2",
+      "version": "7.4.34",
+      "package": "php74-mitigation"
+    },
+    "8.1": {
+      "sha": "1d7dec178a094e6e75b229ce22754045f8c6070a",
+      "version": "8.1.34",
+      "package": "php81-mitigation"
+    },
+    "8.0": {
+      "sha": "82f8f31b16a035c1b67cc253e79f7cc288f4cc20",
+      "version": "8.0.30",
+      "package": "php80-mitigation"
+    }
+  },
+  "container": {
+    "base": "docker.io/library/php:8.1-fpm@sha256:a3118db1911fdd3b3ac66605122ddc859286688ced86fc860fec6d19cc2d6c55",
+    "baseEvidence": "https://github.com/docker-library/repo-info/blob/168f439cc0b6e6bcdb4e93227ff2ef55fd6518a1/repos/php/remote/8.1-fpm.md",
+    "officialRecipe": "https://github.com/docker-library/php/blob/5c037abaf9dc0095e29807c048d9d1b97e6a9716/8.1/trixie/fpm/Dockerfile",
+    "platform": "linux/amd64"
+  }
+}
