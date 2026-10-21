@@ -38,6 +38,8 @@ def validate_gates():
     deadline=time.monotonic()+600
     while True:
         job=api("repos/"+REPO+"/actions/jobs/"+str(JOBS[key]))
+        if job["run_id"]!=RUN or job["name"]!="Build test publish "+target.upper()+" PHP "+series:
+            raise RuntimeError("Wrong job identity")
         step=next((s for s in job["steps"] if s["name"].startswith("Build and test")),None)
         if step and step["status"]=="completed":
             if step["conclusion"]!="success":raise RuntimeError("Build/runtime gate failed")
