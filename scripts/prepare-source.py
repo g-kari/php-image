@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fetch exactly the committed upstream tree. No credentials or moving branch builds."""
 import hashlib, json, pathlib, subprocess, sys
+if not __debug__: raise RuntimeError("Optimized Python would disable verification; refusing")
 series = sys.argv[1]
 lock = json.loads(pathlib.Path("sources.lock.json").read_text())
 item = lock["versions"][series]
@@ -11,7 +12,7 @@ repo = out / ("git-" + series)
 subprocess.run(["git", "init", str(repo)], check=True, stdout=subprocess.DEVNULL)
 subprocess.run(["git", "-C", str(repo), "fetch", "--depth=1", lock["upstream"], sha], check=True)
 actual = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "FETCH_HEAD"], text=True).strip()
-assert actual == sha, (actual, sha)
+if actual != sha: raise RuntimeError("Upstream source SHA mismatch: " + actual)
 tree = subprocess.check_output(["git", "-C", str(repo), "rev-parse", sha + "^{tree}"], text=True).strip()
 tar = out / ("php-" + series + ".tar")
 with tar.open("wb") as f:

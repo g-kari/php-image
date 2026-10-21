@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Bounded local FastCGI checks, including worker reuse and intentional OOM replacement."""
 import json, socket, struct, sys, time
+if not __debug__: raise RuntimeError("Optimized Python would disable verification; refusing")
 host, port = "127.0.0.1", int(sys.argv[1])
 def record(t, content):
     pad = (-len(content)) % 8

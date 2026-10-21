@@ -8,7 +8,7 @@ COPY scripts/test-cli.py /work/test-cli.py
 RUN set -eux; \
     apt-get update; apt-get upgrade -y; \
     apt-get install -y --no-install-recommends bison python3 libargon2-dev libcurl4-openssl-dev libonig-dev libreadline-dev libsodium-dev libsqlite3-dev libssl-dev libxml2-dev zlib1g-dev; \
-    python3 -c 'import hashlib,json; m=json.load(open("/work/source.json")); assert m["sha"]=="1d7dec178a094e6e75b229ce22754045f8c6070a"; assert hashlib.sha256(open("/work/php.tar","rb").read()).hexdigest()==m["archive_sha256"]'; \
+    python3 -I -c 'import hashlib,json; m=json.load(open("/work/source.json")); assert m["sha"]=="1d7dec178a094e6e75b229ce22754045f8c6070a"; assert hashlib.sha256(open("/work/php.tar","rb").read()).hexdigest()==m["archive_sha256"]'; \
     mkdir -p /work/src /stage; tar -xf /work/php.tar -C /work/src --strip-components=1; \
     cd /work/src; ./buildconf --force; \
     export CFLAGS="$PHP_CFLAGS" CPPFLAGS="$PHP_CPPFLAGS" LDFLAGS="$PHP_LDFLAGS"; \

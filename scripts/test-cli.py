@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Functional smoke and deliberate OOM semantics. This is not an exploit/security proof."""
 import json, subprocess, sys
+if not __debug__: raise RuntimeError("Optimized Python would disable verification; refusing")
 php = sys.argv[1]
 def run(code, extra=()):
     return subprocess.run([php, "-n", *extra, "-r", code], text=True, capture_output=True, timeout=20)

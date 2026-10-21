@@ -6,9 +6,10 @@ COPY sources/php-7.4.tar /work/php.tar
 COPY sources/php-7.4.json /work/source.json
 COPY scripts/test-cli.py /work/test-cli.py
 RUN set -eux; \
+    sed -i 's|http://deb.debian.org/debian-security|https://archive.debian.org/debian-security|g; s|http://security.debian.org/debian-security|https://archive.debian.org/debian-security|g' /etc/apt/sources.list; \
     apt-get update; apt-get upgrade -y; \
     apt-get install -y --no-install-recommends bison python3 libargon2-dev libcurl4-openssl-dev libonig-dev libreadline-dev libsodium-dev libsqlite3-dev libssl-dev libxml2-dev zlib1g-dev; \
-    python3 -c 'import hashlib,json; m=json.load(open("/work/source.json")); assert m["sha"]=="712e60f9edfd03f0960fc4fc3c2c375f42b90aa2"; assert hashlib.sha256(open("/work/php.tar","rb").read()).hexdigest()==m["archive_sha256"]'; \
+    python3 -I -c 'import hashlib,json; m=json.load(open("/work/source.json")); assert m["sha"]=="712e60f9edfd03f0960fc4fc3c2c375f42b90aa2"; assert hashlib.sha256(open("/work/php.tar","rb").read()).hexdigest()==m["archive_sha256"]'; \
     mkdir -p /work/src /stage; tar -xf /work/php.tar -C /work/src --strip-components=1; \
     cd /work/src; ./buildconf --force; \
     export CFLAGS="$PHP_CFLAGS" CPPFLAGS="$PHP_CPPFLAGS" LDFLAGS="$PHP_LDFLAGS"; \
@@ -35,7 +36,8 @@ LABEL org.opencontainers.image.source="https://github.com/g-kari/php-image" \
       org.opencontainers.image.description="PHP 7.4 FPM with upstream minimal EOL mitigations for CVE-2026-109618 and CVE-2026-109619; not renewed support" \
       org.opencontainers.image.licenses="PHP-3.01 AND Zend-2.0"
 # APT updates here and in build use the same Debian suite. All runtime changes are inventoried.
-RUN set -eux; apt-get update; apt-get upgrade -y; rm -rf /var/lib/apt/lists/*
+RUN set -eux; sed -i 's|http://deb.debian.org/debian-security|https://archive.debian.org/debian-security|g; s|http://security.debian.org/debian-security|https://archive.debian.org/debian-security|g' /etc/apt/sources.list; \
+    apt-get update; apt-get upgrade -y; rm -rf /var/lib/apt/lists/*
 COPY --from=build /stage/usr/local/ /usr/local/
 # Original source tar was vulnerable; replace it so docker-php-ext-install cannot use it.
 COPY sources/php-7.4.tar /usr/src/php-mitigation.tar

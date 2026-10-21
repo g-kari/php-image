@@ -12,11 +12,13 @@ case "$series" in
   *) exit 2;;
 esac
 test "$(uname -m)" = x86_64
-grep -q 'Amazon Linux 2' /etc/system-release
+. /etc/os-release
+test "$ID" = amzn && test "$VERSION_ID" = 2
 yum install -y gcc gcc-c++ make autoconf bison re2c pkgconfig rpm-build \
  openssl-devel libxml2-devel libcurl-devel zlib-devel sqlite-devel python3
 python3 - "$series" "$sha" <<'PY'
 import hashlib,json,sys
+if not __debug__: raise RuntimeError("Optimized Python verification is forbidden")
 m=json.load(open("/work/sources/php-"+sys.argv[1]+".json"))
 assert m["sha"]==sys.argv[2]
 assert hashlib.sha256(open("/work/sources/php-"+sys.argv[1]+".tar","rb").read()).hexdigest()==m["archive_sha256"]
