@@ -23,6 +23,7 @@ bash scripts/install-syft.sh
 docker commit "$cid" php-al2-runtime:scan >/dev/null
 tools/syft docker:php-al2-runtime:scan -o spdx-json=out/sbom.spdx.json
 cp sources.lock.json out/sources.lock.json
+docker exec "$cid" chown -R "$(id -u):$(id -g)" /out
 docker stop -t 10 "$cid" >/dev/null
 docker logs "$cid" > out/runtime.log 2>&1
 docker rm "$cid" >/dev/null
