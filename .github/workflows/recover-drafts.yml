@@ -1,0 +1,40 @@
+name: Recover verified release drafts
+on:
+  push:
+    branches: [repair-verified-drafts]
+permissions:
+  contents: read
+jobs:
+  recover:
+    if: github.repository == 'g-kari/php-image' && github.ref == 'refs/heads/repair-verified-drafts'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      packages: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {target: fpm, series: '7.4'}
+          - {target: fpm, series: '8.0'}
+          - {target: fpm, series: '8.1'}
+          - {target: al2, series: '7.4'}
+          - {target: al2, series: '8.0'}
+          - {target: al2, series: '8.1'}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify original successful build gates and download exact existing draft bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/repair-drafts.py download '${{ matrix.target }}' '${{ matrix.series }}'
+      - name: Reinstall and retest the same native RPM without credentials
+        if: matrix.target == 'al2'
+        run: bash scripts/retest-existing-rpm.sh '${{ matrix.series }}'
+      - name: Verify all delivered bytes and publish the existing draft by ID
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/repair-drafts.py publish '${{ matrix.target }}' '${{ matrix.series }}'
