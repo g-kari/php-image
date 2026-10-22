@@ -24,7 +24,7 @@ test -f "/tmp/acquire/$srpm"
 printf '%s  %s\n' "$expected" "/tmp/acquire/$srpm" | sha256sum -c -
 rpm --checksig --verbose "/tmp/acquire/$srpm" | tee /out/official-srpm-signature.txt
 grep -Eq '(RSA|DSA).*[Ss]ignature.*: OK' /out/official-srpm-signature.txt
-! grep -Eiq 'NOKEY|NOT OK|BAD|NOTTRUSTED' /out/official-srpm-signature.txt
+if grep -Eiq 'NOKEY|NOT OK|BAD|NOTTRUSTED' /out/official-srpm-signature.txt; then exit 1; fi
 test "$(rpm -qp --qf '%{NAME}|%{VERSION}|%{RELEASE}' "/tmp/acquire/$srpm")" = "php|${pins[2]}|${pins[3]}"
 useradd -m builder
 install -d -o builder -g builder /home/builder/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
@@ -50,9 +50,12 @@ git -C /tmp/official-php-git diff --name-only "$parent" "$commit" > /out/upstrea
 python3 /work/al2-official/prepare-spec.py /home/builder/rpmbuild/SPECS/official-php.spec /home/builder/rpmbuild/SPECS/php.spec /work/al2-official/source-lock.json "$series" | tee /out/spec-diff.txt
 chown -R builder:builder /home/builder/rpmbuild
 # This phase only prepares official sources; no compile, installation, or publication.
-trivial=""
-if [[ -n "${pins[6]}" ]]; then trivial="--define '_trivial ${pins[6]}'"; fi
-su - builder -c "rpmbuild -bp --nodeps $trivial --define '_buildid .cve2026_109618_109619.1' rpmbuild/SPECS/php.spec"
+original_nevr="$(rpmspec -q --srpm --qf '%{NAME}|%{VERSION}|%{RELEASE}' /home/builder/rpmbuild/SPECS/official-php.spec)"
+patched_nevr="$(rpmspec -q --srpm --qf '%{NAME}|%{VERSION}|%{RELEASE}' /home/builder/rpmbuild/SPECS/php.spec)"
+test "$original_nevr" = "php|${pins[2]}|${pins[3]}"
+test "$patched_nevr" = "$original_nevr.cve2026_109618_109619.1"
+printf 'original=%s\npatched=%s\n' "$original_nevr" "$patched_nevr" | tee /out/parsed-nevr.txt
+su - builder -c "rpmbuild -bp --nodeps rpmbuild/SPECS/php.spec"
 cp /home/builder/rpmbuild/SPECS/php.spec /out/recipe.spec
 rpm -qa | sort > /out/preparation-rpms.txt
 echo "OFFICIAL_SECURITY_PATCH_PREPARATION_PASSED series=$series commit=$commit srpm=$srpm"

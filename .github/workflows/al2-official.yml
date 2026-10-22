@@ -5,10 +5,10 @@ on:
 permissions:
   contents: read
 jobs:
-  prepare:
+  build:
     if: github.repository == 'g-kari/php-image' && github.ref == 'refs/heads/build-al2-parity'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
@@ -17,15 +17,15 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Verify vendor source and exact upstream security patch without publishing
+      - name: Build the original vendor subpackages with the exact upstream security patch; no publication
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p out
           base="$(python3 -c 'import json;print(json.load(open("al2-official/source-lock.json"))["base"])')"
-          docker run --rm --platform linux/amd64 --memory 2g --cpus 2 --pids-limit 256 \
+          docker run --rm --platform linux/amd64 --memory 6g --cpus 2 --pids-limit 512 \
             -e CI_DISPOSABLE_BUILD=1 -v "$PWD:/work:ro" -v "$PWD/out:/out" \
-            "$base" bash /work/al2-official/prepare.sh '${{ matrix.series }}' 2>&1 | tee out/preparation.log
-          grep -q '^OFFICIAL_SECURITY_PATCH_PREPARATION_PASSED ' out/preparation.log
+            "$base" bash /work/al2-official/build.sh '${{ matrix.series }}' 2>&1 | tee out/build.log
+          grep -q '^OFFICIAL_SECURITY_RPM_BUILD_PASSED ' out/build.log
       - name: No binary publication in this preparation stage
-        run: echo "Only signed official SRPM acquisition and full upstream patch application are tested. Build, ABI/runtime, independent review and publication are not yet complete."
+        run: echo "Official-layout compilation is a development gate only. ABI/runtime/upgrade/rollback, independent review and publication remain separate gates."
