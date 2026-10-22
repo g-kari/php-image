@@ -9,7 +9,23 @@ def number(label):
     if not matches and label=="Tests borked" and "BORK" not in log:return 0
     if len(matches)!=1:raise RuntimeError("Missing/ambiguous PHPT summary "+label)
     return int(matches[0])
-statistics={key:number(key) for key in ("Tests failed","Tests skipped","Tests passed","Expected fail","Tests warned","Tests borked")}
+statistics={key:number(key) for key in ("Tests failed","Tests skipped","Tests passed","Expected fail","Tests warned","Tests borked","Number of tests")}
+print("PHPT_ORIGINAL_STATISTICS "+json.dumps(statistics,sort_keys=True),flush=True)
+def review_warnings(text,series,members,source):
+    blocks=re.findall(r"(?m)^WARNED TEST SUMMARY\n-{5,}\n([\s\S]*?)^={5,}\s*$",text.replace("\r",""))
+    if not blocks:return []
+    if len(blocks)!=1:raise RuntimeError("Ambiguous PHPT WARN summary")
+    lines=[line for line in blocks[0].splitlines() if line.strip()]
+    print("PHPT_ORIGINAL_WARNINGS "+json.dumps(lines),flush=True)
+    expected="Test hrtime() aligns with microtime() [ext/standard/tests/hrtime/hrtime.phpt] (warn: XFAIL section but test passes)"
+    if series!="8.0" or lines!=[expected]:raise RuntimeError("Unclassified PHPT WARN summary")
+    candidates=[m for name,m in members.items() if name.endswith("/ext/standard/tests/hrtime/hrtime.phpt")]
+    if len(candidates)!=1:raise RuntimeError("WARN source fixture missing or ambiguous")
+    data=source.extractfile(candidates[0]).read()
+    expected_sha="c969e0d308fbbfaa89a7bae6a5e245c67b884a7bf31825eb31b02e77ba848f73"
+    if hashlib.sha256(data).hexdigest()!=expected_sha:raise RuntimeError("Known WARN source fixture changed")
+    return [{"test":"ext/standard/tests/hrtime/hrtime.phpt","actual_status":"WARN","summary":expected,
+      "source_sha256":expected_sha,"classification":"The unchanged upstream timing test has an XFAIL section but matches its expected output. Retained as WARN, not relabeled PASS."}]
 session={"rfc1867","rfc1867_inter","rfc1867_sid_cookie","rfc1867_sid_get","rfc1867_sid_get_2",
  "rfc1867_sid_invalid","rfc1867_sid_only_cookie","rfc1867_sid_post"}
 allow=json.load(open("/work/al2-official/known-phpt-diffs.json"))["series"][series]
@@ -21,6 +37,7 @@ def normalize(value):
 results=[];expected=[]
 with tarfile.open("/out/prepared-source.tar.gz","r:gz") as source:
     members={(m.name[2:] if m.name.startswith("./") else m.name):m for m in source.getmembers()}
+    warnings=review_warnings(log,series,members,source)
     for path in sorted((root/"build-evidence").rglob("*.diff")):
         rel=path.relative_to(root/"build-evidence")
         candidate=str(rel.with_suffix(".phpt"))
@@ -52,12 +69,13 @@ with tarfile.open("/out/prepared-source.tar.gz","r:gz") as source:
             record["classification"]="Historical Tehran tzdata expectation corrected in tzdb2022b; unchanged vendor binary and exact tzdata NEVRA are separately compared."
         else:raise RuntimeError("Unclassified PHPT failure: "+where)
         results.append(record)
-if len(results)!=statistics["Tests failed"] or statistics["Tests warned"]!=0 or statistics["Tests borked"]!=0:
+if len(results)!=statistics["Tests failed"] or len(warnings)!=statistics["Tests warned"] or statistics["Tests borked"]!=0:
+    print("PHPT_INVENTORY_MISMATCH "+json.dumps({"statistics":statistics,"classified_failures":len(results),"classified_warnings":len(warnings)}),flush=True)
     raise RuntimeError("PHPT failure inventory/count mismatch")
-report={"series":series,"statistics":statistics,"original_failures":results,"expected_fail_evidence":expected,
+report={"series":series,"statistics":statistics,"original_failures":results,"original_warnings":warnings,"expected_fail_evidence":expected,
  "status":"no_unclassified_failure","timeout_policy":"Any new timeout changes an exact failure oracle or count and blocks; vendor SKIP/XFAIL remain separate.","all_tests_passed":False,
  "limitations":["The original vendor suite uses the without-shared Apache build CLI and has many SKIPs.",
  "Known FAILs have explanations and replacement runtime gates; they are not relabeled PASS."]}
 (root/"qa"/"PHPT-RESULTS.json").write_text(json.dumps(report,indent=2,sort_keys=True))
 print("PHPT_REVIEWED_FAILURE_INVENTORY "+json.dumps({"series":series,"statistics":statistics,
- "actual_failures":[r["test"] for r in results],"all_tests_passed":False}))
+ "actual_failures":[r["test"] for r in results],"original_warnings":warnings,"all_tests_passed":False}))
