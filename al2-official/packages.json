@@ -97,7 +97,8 @@
         "version": "5.1.18",
         "release": "1.amzn2",
         "sha256": "33e7a4e1075e3ae116eb1c6f23106e6cc5b9439c68f9afc8f5c0d19d20cecbe0",
-        "devel": "php-pecl-apcu-devel"
+        "devel": "php-pecl-apcu-devel",
+        "devel_arch": "noarch"
       },
       {
         "name": "php-pecl-igbinary",
@@ -105,7 +106,8 @@
         "version": "3.1.2",
         "release": "1.amzn2",
         "sha256": "f222763792901fb2305c7cdac327566941c5a7e3882fd3f6bbddd3e0f7aadc84",
-        "devel": "php-pecl-igbinary-devel"
+        "devel": "php-pecl-igbinary-devel",
+        "devel_arch": "noarch"
       },
       {
         "name": "php-pecl-imagick",
@@ -113,7 +115,8 @@
         "version": "3.5.1",
         "release": "1.amzn2",
         "sha256": "b7b4d101306454bc12f129f2bddfc6e56c441ebcd5ef356c051552abc0528a61",
-        "devel": "php-pecl-imagick-devel"
+        "devel": "php-pecl-imagick-devel",
+        "devel_arch": "noarch"
       },
       {
         "name": "php-pecl-mailparse",
@@ -142,7 +145,8 @@
         "version": "2.1.0",
         "release": "1.amzn2",
         "sha256": "c6650be24b67cc8b0b5080382a809dd6bc6becc9ec2f64e50bfc7922d6481875",
-        "devel": "php-pecl-msgpack-devel"
+        "devel": "php-pecl-msgpack-devel",
+        "devel_arch": "noarch"
       },
       {
         "name": "php-pecl-oauth",
@@ -180,7 +184,8 @@
         "version": "3.5.1",
         "release": "1.amzn2.0.1",
         "sha256": "ac0f9385652289b90c5a67342428043e31e008d663afc4294e70a246696018a7",
-        "devel": "php-pecl-imagick-devel"
+        "devel": "php-pecl-imagick-devel",
+        "devel_arch": "noarch"
       }
     ],
     "8.1": []

@@ -36,7 +36,7 @@ while IFS='|' read -r name version release sha; do
  yumdownloader --source --disablerepo='*' --enablerepo="$topic" --enablerepo="$source" --destdir=/out/vendor/sources "$name-$version-$release"
  case "$name" in
  php-pecl-apcu|php-pecl-igbinary|php-pecl-imagick|php-pecl-msgpack)
-  yumdownloader --disablerepo='*' --enablerepo="$topic" --destdir=/out/vendor/pecl "$name-devel-$version-$release.x86_64"
+  yumdownloader --disablerepo='*' --enablerepo="$topic" --destdir=/out/vendor/pecl "$name-devel-$version-$release.noarch"
  ;;
  esac
  file="/out/vendor/sources/$name-$version-$release.src.rpm"
