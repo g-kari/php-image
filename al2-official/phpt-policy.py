@@ -37,10 +37,10 @@ def abnormal_actual_hunks(diff):
         if line.endswith("\r"):line=line[:-1]
         match=re.fullmatch(r"[0-9]{3,}\+ (.*)",line)
         if not match:continue
-        actual=match.group(1)
-        if actual==" ** ERROR: process timed out **":
+        actual=match.group(1).strip(" \t")
+        if actual=="** ERROR: process timed out **":
             records.append({"kind":"timeout","actual":actual})
-        elif re.fullmatch(r"Termsig=[0-9]+",actual):
+        elif re.fullmatch(r"Termsig=-?[0-9]+",actual):
             records.append({"kind":"signal","actual":actual})
     return records
 def normalize(value):

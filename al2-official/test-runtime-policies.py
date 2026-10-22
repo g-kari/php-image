@@ -106,7 +106,11 @@ print("STRICT_PHPT_WARN_POLICY_UNIT_PASSED")
 for text,kind in [
  ("001+  ** ERROR: process timed out **\n","timeout"),
  ("019+ Termsig=11\r\n","signal"),
- ("1001+ Termsig=0\n","signal")]:
+ ("1001+ Termsig=0\n","signal"),
+ ("001+ ** ERROR: process timed out **\n","timeout"),
+ ("002+ \t** ERROR: process timed out **\t\n","timeout"),
+ ("003+ Termsig=-11\n","signal"),
+ ("004+  Termsig=11\n","signal")]:
     result=ns["abnormal_actual_hunks"](text)
     if len(result)!=1 or result[0]["kind"]!=kind:raise RuntimeError("Abnormal PHPT actual hunk accepted")
 for text in [
@@ -121,8 +125,7 @@ for text in [
  "1+ Termsig=11\n",
  "001+Termsig=11\n",
  "001+\tTermsig=11\n",
- "001+  Termsig=11\n",
- "001+ ** ERROR: process timed out **\n"]:
+ "001+ Termsig=-not-a-number\n"]:
     if ns["abnormal_actual_hunks"](text):raise RuntimeError("Expected/context/ordinary text misclassified")
 for source,status in [("--XFAIL--\nKnown upstream bug\n","XFAIL"),("--XFAIL_EXTERNAL--\nreason.txt\n","XFAIL"),("--EXPECT--\nfixture\n","FAIL")]:
     if ns["retained_diff_status"](source)!=status:raise RuntimeError("Original upstream status relabeled")
