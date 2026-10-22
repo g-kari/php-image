@@ -67,7 +67,11 @@ for config in php-config zts-php-config; do
  if [[ "$zts" = 1 ]]; then includes+=(-DZTS); fi
  gcc "${includes[@]}" /work/al2-official/abi-probe.c -o "/tmp/abi-$config"
  "/tmp/abi-$config" > "$dir/abi-$config.txt"
- "$config" --phpapi > "$dir/api-$config.txt"
+ # php-config has no --phpapi option in these official versions.
+ # Bind the API evidence to PHP_API_VERSION read from the installed real headers.
+ grep -E '^php_api=[0-9]+$' "$dir/abi-$config.txt" > "$dir/api-$config.txt"
+ test "$(wc -l < "$dir/api-$config.txt")" = 1
+ echo "HEADER_ABI_PROBE_PASSED phase=$phase config=$config"
 done
 php -r 'echo json_encode(["default_multipart"=>ini_get("max_multipart_body_parts"),"timezone"=>timezone_version_get(),"tehran"=>(new DateTime("1977-10-25 17:17:17",new DateTimeZone("Asia/Tehran")))->format("Y-m-d H:i:s T"),"next_tuesday"=>(new DateTime("1977-10-25 17:17:17",new DateTimeZone("Asia/Tehran")))->modify("next Tuesday")->format("Y-m-d H:i:s T")]);' > "$dir/date-and-defaults.json"
 last_probe="CLI OOM"; last_output="$dir/cli-oom.json"
