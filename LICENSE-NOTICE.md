@@ -11,6 +11,8 @@ This product includes software developed by the University of California, Berkel
 
 These credits do not imply endorsement, Amazon signatures, renewed maintenance or a legal warranty.
 
+The embedded verbatim PHP 8.0 hrtime PHPT fixture in al2-official/test-runtime-policies.py remains PHP License 3.01 material, not original MIT harness code. Exact upstream PHP 3.01 and Zend Engine 2.00 terms are retained under third-party-licenses/ for reference alongside this notice.
+
 ## Exact old-series AWS spec metadata
 The inspected original 7.4/8.0/8.1 AWS specs declare the following legacy License strings; the rebuilt RPMs preserve them rather than assigning a new license.
 

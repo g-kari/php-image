@@ -56,6 +56,10 @@ if result[0]!=b"fixture" or result[2]["completion"]!="end-request":raise Runtime
 print("FASTCGI_TRANSPORT_POLICY_UNIT_PASSED")
 
 ns=functions("al2-official/phpt-policy.py",["review_warnings"],{"re":re,"json":json,"hashlib":hashlib})
+# The verbatim hrtime PHPT fixture below is PHP-src php-8.0.30 material,
+# under PHP License 3.01, not the MIT license for our original test harness.
+# Source: https://github.com/php/php-src/blob/php-8.0.30/ext/standard/tests/hrtime/hrtime.phpt
+# Full upstream terms/credits: third-party-licenses/PHP-3.01.txt and LICENSE-NOTICE.md.
 fixture=b"""--TEST--
 Test hrtime() aligns with microtime()
 --XFAIL--
