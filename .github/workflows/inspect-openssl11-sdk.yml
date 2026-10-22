@@ -1,0 +1,40 @@
+name: Inspect official OpenSSL11 SDK without installation
+on:
+  push:
+    branches: [inspect-openssl11-sdk]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Read signed vendor RPM metadata and files only
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$(python3 -c 'import json;print(json.load(open("sources.lock.json"))["al2"]["base"])')"
+          docker run --rm -i --platform linux/amd64 --memory 2g --cpus 2 --pids-limit 256 "$base" bash -s <<'SH'
+          set -euo pipefail
+          yum install -y yum-utils cpio pkgconfig openssl-devel openssl11-libs net-snmp-devel openldap-devel
+          mkdir -p /tmp/sdk-rpm /tmp/sdk-files
+          yumdownloader --disablerepo='*' --enablerepo=amzn2-core --destdir=/tmp/sdk-rpm openssl11-devel-1.1.1zj-1.amzn2.0.1.x86_64
+          test "$(find /tmp/sdk-rpm -type f -name '*.rpm' | wc -l)" -eq 1
+          rpmfile="$(find /tmp/sdk-rpm -type f -name '*.rpm')"
+          rpm --checksig --verbose "$rpmfile"
+          rpm -qp --qf '%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}\n' "$rpmfile"
+          sha256sum "$rpmfile"
+          rpm -q openssl-devel openssl11-libs
+          if rpm -q openssl11-devel; then echo "Unexpected global SDK install"; exit 1; fi
+          rpm -qlp "$rpmfile"
+          cd /tmp/sdk-files
+          rpm2cpio "$rpmfile" | cpio -idm --no-absolute-filenames './usr/include/*' './usr/lib64/pkgconfig/*'
+          test -f usr/include/openssl/opensslv.h
+          for pc in usr/lib64/pkgconfig/*11.pc; do echo "VENDOR_PC_BEGIN $pc"; cat "$pc"; echo VENDOR_PC_END; done
+          grep -E 'OPENSSL_VERSION_(NUMBER|TEXT)' usr/include/openssl/opensslv.h
+          ls -l /usr/lib64/libssl.so.1.1 /usr/lib64/libcrypto.so.1.1
+          echo SDK_READ_ONLY_INSPECTION_COMPLETE
+          SH
