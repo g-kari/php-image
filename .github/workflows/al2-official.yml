@@ -25,22 +25,31 @@ jobs:
   verify:
     needs: changes
     if: github.event_name == 'pull_request' && needs.changes.outputs.official == 'true'
-    name: Read-only official AL2 PHP ${{ matrix.series }}
+    name: Diagnostic official AL2 PHP ${{ matrix.series }}
     runs-on: ubuntu-24.04
     timeout-minutes: 100
     strategy:
       fail-fast: false
       matrix:
-        series: ['7.4', '8.0', '8.1']
+        series: ['8.1']
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
       - name: Official PHPT plus exact packaged cohort runtime, update and rollback
         run: bash al2-official/ci.sh '${{ matrix.series }}'
+  diagnostic-scope-hold:
+    needs: [changes, verify]
+    if: always() && github.event_name == 'pull_request' && needs.changes.outputs.official == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - run: |
+          echo "8.1 evidence diagnosis only. All-series final-head PR verification and publication remain blocked."
+          exit 1
   publish:
     needs: changes
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'g-kari/php-image' && needs.changes.outputs.official == 'true'
+    if: false
+    # Diagnostic-only head: no publication even if this temporary workflow reaches main.
     name: Build test publish official AL2 PHP ${{ matrix.series }}
     runs-on: ubuntu-24.04
     timeout-minutes: 100
