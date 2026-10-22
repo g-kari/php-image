@@ -56,8 +56,8 @@ jobs:
       - name: Official PHPT plus exact packaged cohort runtime, update and rollback
         run: bash al2-official/ci.sh '${{ matrix.series }}'
   baseline-diagnosis-hold:
-    needs: preflight
-    if: always() && github.event_name == 'pull_request'
+    needs: [changes, preflight]
+    if: always() && github.event_name == 'pull_request' && needs.changes.outputs.official == 'true'
     runs-on: ubuntu-24.04
     steps:
       - run: |
