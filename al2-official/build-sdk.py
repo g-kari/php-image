@@ -111,6 +111,9 @@ def unit_recipe(command,index,pic_flags="-fPIC -DPIC"):
     stem="sdk-unit-"+str(index)
     transformed=match[1]+" -E -H -dM "+match[2]+" > "+stem+"-macros.txt 2> "+stem+"-headers.txt"
     return stem,transformed,match[2]
+def external_client_header(actual,client_basenames,series,php_root):
+    # PostgreSQL also ships datetime.h; fixed PHP's own ext/standard/datetime.h is not a dependency SDK.
+    return php_root not in actual.parents and actual.name in client_basenames and ("/curl/" in str(actual) or series=="7.4")
 def probe(dest,build):
     manifest=json.load(open(dest/"manifest.json"));items=manifest["packages"]
     if not items:return
@@ -177,7 +180,7 @@ def probe(dest,build):
                 relative=str(actual.relative_to(include))
                 require(relative in inventory_all and hashlib.sha256(actual.read_bytes()).hexdigest()==inventory_all[relative]["sha256"],"actual unit SDK bytes changed")
                 seen_unit.add(relative)
-            elif actual.name in client_basenames and ("/curl/" in str(actual) or manifest["series"]=="7.4"):
+            elif external_client_header(actual,client_basenames,manifest["series"],build.parent.resolve()):
                 raise RuntimeError("Build SDK: actual client unit mixed system header "+str(actual))
             if "/openssl/" in str(actual) and "/ext/openssl/" not in str(actual):
                 require(str(actual).startswith("/usr/include/openssl/"),"actual unit OpenSSL header changed")

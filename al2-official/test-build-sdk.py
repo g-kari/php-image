@@ -37,4 +37,10 @@ for command in (recipe.replace(" -c "," --sysroot=/wrong -c "),recipe+" && true"
     try:ns["unit_recipe"](command,0)
     except RuntimeError:pass
     else:raise RuntimeError("Unknown client recipe accepted")
+root=Path("/fixed/php-source")
+names={"datetime.h","curl.h","libpq-fe.h"}
+if ns["external_client_header"](root/"ext/standard/datetime.h",names,"7.4",root):raise RuntimeError("Fixed PHP-owned header mislabeled as external SDK")
+for wrong in (Path("/usr/include/datetime.h"),Path("/usr/include/curl/curl.h"),Path("/other-sdk/libpq-fe.h")):
+    if not ns["external_client_header"](wrong,names,"7.4",root):raise RuntimeError("External mixed client header accepted")
+if not ns["external_client_header"](Path("/usr/include/curl/curl.h"),names,"8.0",root):raise RuntimeError("8.0 external curl header accepted")
 print("PINNED_HEADER_SDK_ARCHIVE_POLICY_UNIT_PASSED")
