@@ -17,6 +17,7 @@ for series,mapping in data["series"].items():
         if not text.endswith("\n") or "UNCLASSIFIED" in text:raise RuntimeError("Invalid oracle")
 print("QA_HARNESS_SYNTAX_AND_ORACLE_INVENTORY_PASSED")
 '
+python3 al2-official/test-signature-policy.py
 for file in al2-official/*.sh; do bash -n "$file"; done
 test ! -e out
 mkdir out

@@ -6,6 +6,8 @@ case "$series" in 7.4|8.0|8.1) ;; *) exit 2;; esac
 . /etc/os-release
 test "$ID" = amzn && test "$VERSION_ID" = 2 && test "$(uname -m)" = x86_64
 yum install -y amazon-linux-extras yum-utils python3 binutils gcc cpio make gzip tar diffutils curl openssl ca-certificates
+cd /work
+python3 /work/al2-official/test-signature-policy.py
 amazon-linux-extras enable "php$series"
 topic="amzn2extra-php$series"; source="$topic-source"
 mkdir -p /out/vendor/{main,pecl,sources} /out/qa

@@ -19,9 +19,9 @@ on_exit() {
  local rc=$?
  if [[ "$rc" != 0 ]]; then
   echo "PHASE_FAILURE series=$series phase=$phase stage=$last_probe status=$rc" >&2
-  if [[ -n "$last_output" && -f "$last_output" ]]; then tail -c 10000 "$last_output" >&2; fi
-  if [[ -f "$dir/fpm.log" ]]; then tail -n 40 "$dir/fpm.log" >&2; fi
-  if [[ -f "$dir/tls-local-server.jsonl" ]]; then tail -c 4000 "$dir/tls-local-server.jsonl" >&2; fi
+  if [[ -n "$last_output" && -f "$last_output" ]]; then tail -c 10000 "$last_output" >&2 || true; fi
+  if [[ -f "$dir/fpm.log" ]]; then tail -n 40 "$dir/fpm.log" >&2 || true; fi
+  if [[ -f "$dir/tls-local-server.jsonl" ]]; then tail -c 4000 "$dir/tls-local-server.jsonl" >&2 || true; fi
  fi
  cleanup
  exit "$rc"
