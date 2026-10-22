@@ -3,7 +3,8 @@
 import json,os,re,subprocess,sys
 from pathlib import Path
 def classify(paths):
-    docs={"README.md","NOTICE.md","VERIFY.md","LICENSE-NOTICE.md","LICENSE"}
+    docs={"README.md","NOTICE.md","VERIFY.md","LICENSE-NOTICE.md","LICENSE",
+          "third-party-licenses/PHP-3.01.txt","third-party-licenses/Zend-Engine-2.00.txt"}
     classifier={"scripts/classify-ci.py",".github/workflows/verify.yml"}
     shared={"scripts/install-syft.sh"}
     official=lambda p:p.startswith("al2-official/") or p==".github/workflows/al2-official.yml"
@@ -14,6 +15,9 @@ def main():
     if sys.argv[1:]==["--self-test"]:
         cases=[([], (False,False)),(["README.md"],(False,False)),
           (["al2-official/build.sh"],(False,True)),
+          (["third-party-licenses/PHP-3.01.txt","third-party-licenses/Zend-Engine-2.00.txt"],(False,False)),
+          (["third-party-licenses/unreviewed.sh"],(True,False)),
+          (["al2-official/phpt-policy.py","third-party-licenses/PHP-3.01.txt"],(False,True)),
           (["al2-parity/old.sh"],(False,False)),
           (["scripts/ci-al2.sh"],(True,False)),
           (["scripts/install-syft.sh"],(True,True)),
