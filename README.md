@@ -2,7 +2,7 @@
 
 Amazon Linux 2 PHP 7.4 / 8.0 / 8.1 / 8.2 self-build RPMs, plus non-AL2 PHP 7.4 / 8.0 / 8.1 FPM container images.
 
-**Existing separate-prefix AL2 7.4/8.0/8.1/8.2 RPMs and non-AL2 FPM 7.4/8.0/8.1 images are published after bounded checks. All three registry images passed anonymous digest pulls. The newer AWS-layout 7.4/8.0/8.1 complete split-RPM rebuild is a different, not-yet-published deliverable; see [its scope and QA gates](al2-official/README.md). For system-layout 8.2, prefer [AWS official 8.2.35](https://alas.aws.amazon.com/AL2/ALAS2PHP8.2-2026-015.html), not a custom 8.2.34 backport.**
+**Existing separate-prefix AL2 7.4/8.0/8.1/8.2 RPMs and non-AL2 FPM 7.4/8.0/8.1 images are published after bounded checks. All three registry images passed anonymous digest pulls. The newer AWS-layout 7.4/8.0/8.1 complete split-RPM rebuilds are now published as unofficial x86_64 prereleases; see the verified release links and limitations below, and [the recipe scope and QA gates](al2-official/README.md). For system-layout 8.2, prefer [AWS official 8.2.35](https://alas.aws.amazon.com/AL2/ALAS2PHP8.2-2026-015.html), not a custom 8.2.34 backport.**
 
 License scope, bundled notices and verification status are explicit in [LICENSE-NOTICE.md](LICENSE-NOTICE.md). Repository MIT does not relicense PHP, Zend, extensions or OS/image layers.
 
@@ -11,8 +11,29 @@ For PHP 7.4/8.0/8.1, this project packages the PHP project's **minimal EOL mitig
 ## Artifact families
 
 1. Existing independent-prefix RPMs and official-base FPM images: immutable published artifacts below. AL2 8.2: [published limited-prefix build](https://github.com/g-kari/php-image/releases/tag/al2-8.2-0bcc2d7d9d8d).
-2. [New official AWS SRPM/spec layout rebuild](al2-official/README.md): full 7.4/8.0/8.1 split set with unchanged vendor configuration, pending final QA/review/publication. This family replaces matching system PHP packages rather than installing in /opt.
+2. [AWS SRPM/spec-layout rebuilds](al2-official/README.md): full 7.4/8.0/8.1 split sets are published below as unofficial prereleases. Vendor configuration is retained, with the security patch, local Release suffix and explicitly documented build-only SDK preparation differences. This family replaces matching system PHP packages rather than installing in /opt.
 3. AWS official 8.2.35 is preferred for normal AL2 8.2 packages.
+
+## Published AWS-layout AL2 prereleases
+
+These **unsigned, unofficial x86_64** packages use normal AWS package names/paths and replace the matching installed system PHP cohort. They are not Amazon-signed or Amazon/PHP-supported releases. Do not mix series or install every optional subpackage solely because it is available.
+
+- [PHP 7.4](https://github.com/g-kari/php-image/releases/tag/al2-official-7.4-b6ec0b470040): 28 normal subpackages + debuginfo + complete SRPM; 51 uploaded assets.
+- [PHP 8.0](https://github.com/g-kari/php-image/releases/tag/al2-official-8.0-b6ec0b470040): 26 normal subpackages + debuginfo + complete SRPM; 49 uploaded assets.
+- [PHP 8.1](https://github.com/g-kari/php-image/releases/tag/al2-official-8.1-b6ec0b470040): 26 normal subpackages + debuginfo + complete SRPM; 49 uploaded assets.
+
+The immutable build recipe is [b6ec0b470040e432b7a8e5cff404f3c8e54c93c8](https://github.com/g-kari/php-image/commit/b6ec0b470040e432b7a8e5cff404f3c8e54c93c8). [Trusted-main build, QA and publication run39743088760](https://github.com/g-kari/php-image/actions/runs/39743088760) passed all three series after the reviewed PR QA. Each release contains source/spec diffs, SBOM, provenance, SHA256SUMS, original PHPT and transaction/runtime evidence, and version-matched license notices.
+
+The original official PHPT results are retained, **not relabeled all-tests-pass**:
+- 7.4: 9124 PASS / 12 FAIL / 6616 SKIP / 33 XFAIL / 0 WARN.
+- 8.0: 9593 PASS / 11 FAIL / 6862 SKIP / 28 XFAIL / 1 WARN.
+- 8.1: 10287 PASS / 15 FAIL / 7372 SKIP / 8 XFAIL / 0 WARN.
+
+Exact source-bound intentional/fixture differences were reviewed; unknown differences block publication. Additional isolated-container checks covered official-cohort upgrade/config preservation and saved-original RPM rollback, packaged SAPIs/modules, the targeted vendor PECL set, headers/API/ELF and bounded TLS/upload/session/OOM behavior. Systemd unit activation, production applications, arbitrary private extensions and full FIPS compatibility remain unverified. Rolling back to original RPMs restores known vulnerabilities.
+
+All 149 uploaded assets passed the publishing job's local-byte/API size-and-digest checks. After publication, all 86 RPM API SHA256 values matched the main job's tested final set in independent review. Anonymous API metadata and logged-out public release pages were reachable. **Independent anonymous binary re-download and re-hashing were not completed**; do not interpret metadata visibility as that stronger test.
+
+For 7.4/8.0, authenticated old SDK **headers only** are staged in the private build environment to retain original registered API values; no old runtime libraries are installed. This is an explicit difference beyond the security patch and Release suffix. Complete SDK inputs/helper/lock are included in the SRPM. The official EOL mitigation's OOM/shutdown and builtin upload-progress tradeoffs remain; see the recipe and release notes. Checksums are not a publisher signature; do not weaken package-signature policy to install unsigned builds. Use the site's existing approved review/rebuild/signing process.
 
 ## Scope of the earlier separate-prefix and FPM builds
 
