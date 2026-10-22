@@ -3,7 +3,11 @@
 import json,os,shlex,subprocess,sys,time,urllib.request
 from pathlib import Path
 series,phase=sys.argv[1:];out=Path("/out/qa")/phase
-def command(args,**kw):return subprocess.check_output(args,**kw)
+def command(args,**kw):
+    try:return subprocess.check_output(args,**kw)
+    except subprocess.CalledProcessError as error:
+        print("SAPI_COMMAND_FAILED "+repr(args)+"\n"+error.output.decode(errors="replace")[-8000:],flush=True)
+        raise
 includes=shlex.split(command(["php-config","--includes"]).decode())
 libraries=[p for p in command(["rpm","-ql","php-embedded"]).decode().splitlines()
            if p in ("/usr/lib64/libphp7.so","/usr/lib64/libphp.so")]

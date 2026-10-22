@@ -14,7 +14,19 @@ cleanup() {
   wait "$fpm_pid" 2>/dev/null || true
  fi
 }
-trap cleanup EXIT
+last_probe="initialization"; last_output=""
+on_exit() {
+ local rc=$?
+ if [[ "$rc" != 0 ]]; then
+  echo "PHASE_FAILURE series=$series phase=$phase stage=$last_probe status=$rc" >&2
+  if [[ -n "$last_output" && -f "$last_output" ]]; then tail -c 10000 "$last_output" >&2; fi
+  if [[ -f "$dir/fpm.log" ]]; then tail -n 40 "$dir/fpm.log" >&2; fi
+  if [[ -f "$dir/tls-local-server.jsonl" ]]; then tail -c 4000 "$dir/tls-local-server.jsonl" >&2; fi
+ fi
+ cleanup
+ exit "$rc"
+}
+trap on_exit EXIT
 for file in /work/al2-official/*.php; do php -l "$file"; done
 php --ini > "$dir/php-ini-paths.txt"
 php-config --configure-options > "$dir/configure-options.txt"
@@ -23,6 +35,7 @@ pear version > "$dir/pear-version.txt"
 pecl version > "$dir/pecl-version.txt"
 for binary in php zts-php phpdbg zts-phpdbg; do
  command -v "$binary" >/dev/null
+ last_probe="SAPI $binary"; last_output="$dir/$binary.json"
  echo "SAPI_PROBE_BEGIN phase=$phase binary=$binary"
  if [[ "$binary" = *phpdbg ]]; then
   timeout 20 "$binary" -d apc.enable_cli=1 -qrr /work/al2-official/probe-entry.php "$series" > "$dir/$binary.json"
@@ -30,9 +43,11 @@ for binary in php zts-php phpdbg zts-phpdbg; do
   timeout 20 "$binary" -d apc.enable_cli=1 /work/al2-official/probe-entry.php "$series" > "$dir/$binary.json"
  fi
 done
+last_probe="SAPI php-cgi"; last_output="$dir/php-cgi.json"
 REDIRECT_STATUS=1 REQUEST_METHOD=GET SCRIPT_FILENAME=/work/al2-official/probe-entry.php \
  QUERY_STRING="series=$series" timeout 20 php-cgi -q > "$dir/php-cgi.json"
 for config in php-config zts-php-config; do
+ last_probe="Header ABI $config"; last_output="$dir/abi-$config.txt"
  binary="${config%-config}"
  # php-config describes php; zts-php-config describes zts-php.
  zts="$("$binary" -r 'echo (int)PHP_ZTS;')"
@@ -43,15 +58,20 @@ for config in php-config zts-php-config; do
  "$config" --phpapi > "$dir/api-$config.txt"
 done
 php -r 'echo json_encode(["default_multipart"=>ini_get("max_multipart_body_parts"),"timezone"=>timezone_version_get(),"tehran"=>(new DateTime("1977-10-25 17:17:17",new DateTimeZone("Asia/Tehran")))->format("Y-m-d H:i:s T"),"next_tuesday"=>(new DateTime("1977-10-25 17:17:17",new DateTimeZone("Asia/Tehran")))->modify("next Tuesday")->format("Y-m-d H:i:s T")]);' > "$dir/date-and-defaults.json"
+last_probe="CLI OOM"; last_output="$dir/cli-oom.json"
 python3 /work/al2-official/cli-oom.py "$series" "$phase"
+last_probe="packaged FPM syntax"; last_output="$dir/packaged-fpm-syntax.txt"
 php-fpm -t > "$dir/packaged-fpm-syntax.txt" 2>&1
 # Private CI-only configuration. Does not replace the packaged service, pool or INI.
 php-fpm -d max_multipart_body_parts=3 --nodaemonize --fpm-config /work/al2-official/fpm.conf > "$dir/fpm.log" 2>&1 &
 fpm_pid="$!"
+last_probe="FPM runtime"; last_output="$dir/fpm.json"
 python3 /work/al2-official/fastcgi.py "$series" "$phase" "$dir/fpm.json"
 cleanup; fpm_pid=""
 if [[ "$phase" != rollback ]]; then
+ last_probe="strict public TLS curl-first"; last_output="$dir/tls-public-origin-curl-first.json"
  timeout 65 php /work/al2-official/tls-origin.php curl-first > "$dir/tls-public-origin-curl-first.json"
+ last_probe="strict public TLS stream-first"; last_output="$dir/tls-public-origin-stream-first.json"
  timeout 65 php /work/al2-official/tls-origin.php stream-first > "$dir/tls-public-origin-stream-first.json"
  if [[ ! -f /tmp/public-sni-fixture.pem ]]; then
   curl --fail --silent --show-error --proto '=https' --connect-timeout 5 --max-time 20 \
@@ -65,10 +85,13 @@ if [[ "$phase" != rollback ]]; then
  tls_pid="$!"
  for _ in $(seq 1 50); do test ! -f /tmp/ci-sni-ready || break; sleep 0.1; done
  test -f /tmp/ci-sni-ready
+ last_probe="strict local TLS"; last_output="$dir/tls-local-strict.json"
  timeout 25 php /work/al2-official/sni-client.php /tmp/ci-sni-ca.pem > "$dir/tls-local-strict.json"
  wait "$tls_pid"; tls_pid=""
 fi
+last_probe="embedded and Apache SAPIs"; last_output=""
 python3 /work/al2-official/sapi-probes.py "$series" "$phase"
+last_probe="native ELF inventory"; last_output=""
 python3 /work/al2-official/native-snapshot.py "$series" "$dir/native.json"
 rpm -q --qf '%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}|%{SOURCERPM}\n' $(python3 -c 'import json,sys;print(" ".join(json.load(open("/work/al2-official/packages.json"))["main"][sys.argv[1]]))' "$series") | sort > "$dir/installed-main.txt"
 find /usr/lib64/php/modules /usr/lib64/php-zts/modules -maxdepth 1 -type f -name '*.so' -print0 | sort -z | xargs -0 sha256sum > "$dir/modules.sha256"

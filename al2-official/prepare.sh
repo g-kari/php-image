@@ -24,7 +24,7 @@ test -f "/tmp/acquire/$srpm"
 printf '%s  %s\n' "$expected" "/tmp/acquire/$srpm" | sha256sum -c -
 rpm --checksig --verbose "/tmp/acquire/$srpm" | tee /out/official-srpm-signature.txt
 grep -Eq '(RSA|DSA).*[Ss]ignature.*: OK' /out/official-srpm-signature.txt
-if grep -Eiq 'NOKEY|NOT OK|BAD|NOTTRUSTED' /out/official-srpm-signature.txt; then exit 1; fi
+if grep -Eiq '(^|[^[:alnum:]_])(NOKEY|NOT OK|BAD|NOTTRUSTED)([^[:alnum:]_]|$)' /out/official-srpm-signature.txt; then exit 1; fi
 test "$(rpm -qp --qf '%{NAME}|%{VERSION}|%{RELEASE}' "/tmp/acquire/$srpm")" = "php|${pins[2]}|${pins[3]}"
 useradd -m builder
 install -d -o builder -g builder /home/builder/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
