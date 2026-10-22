@@ -71,7 +71,7 @@ if series=="7.4":ensure(a["default_multipart"] is False and str(b["default_multi
 else:ensure(a["default_multipart"]==b["default_multipart"],"Existing multipart default changed")
 for phase in ("patched","rollback"):
     old=read("vendor","generated-aux-cache.json");new=read(phase,"generated-aux-cache.json")
-    ensure(all(old[key]==new[key] for key in ("path","realpath","owner","parsed")),"Generated auxiliary cache semantic/owner changed: "+phase)
+    ensure(all(old[key]==new[key] for key in ("path","realpath","owner","parsed")) and all(old["stat"][key]==new["stat"][key] for key in ("mode","uid","gid")),"Generated auxiliary cache semantic/owner/permissions changed: "+phase)
 for file in ("config-local.sha256","system-libraries.sha256","nonphp-rpms.txt","pecl-rpms.txt","pecl-modules.sha256","rpm-verify.txt"):
     for phase in ("patched","rollback"):
         ensure((root/"vendor"/file).read_bytes()==(root/phase/file).read_bytes(),"Cohort/config/system invariant failed: "+file+" "+phase)

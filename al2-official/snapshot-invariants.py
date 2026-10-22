@@ -17,12 +17,12 @@ aux=Path(AUX_PATH)
 if aux.is_symlink() or not aux.is_file():raise RuntimeError("Auxiliary cache must be a regular non-symlink")
 with aux.open("rb") as handle:
     before=os.fstat(handle.fileno());raw=handle.read(16000001);after=os.fstat(handle.fileno())
-if any(getattr(before,key)!=getattr(after,key) for key in ("st_dev","st_ino","st_mode","st_size","st_mtime_ns","st_ctime_ns")) or not stat.S_ISREG(before.st_mode):raise RuntimeError("Auxiliary cache changed during observation")
+if any(getattr(before,key)!=getattr(after,key) for key in ("st_dev","st_ino","st_mode","st_uid","st_gid","st_size","st_mtime_ns","st_ctime_ns")) or not stat.S_ISREG(before.st_mode):raise RuntimeError("Auxiliary cache changed during observation")
 owner=subprocess.check_output(["rpm","-qf","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}",AUX_PATH]).decode()
 glibc=subprocess.check_output(["rpm","-q","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}","glibc"]).decode()
 if owner!=glibc or not owner.startswith("glibc|0|2.26|"):raise RuntimeError("Unexpected auxiliary cache owner")
 record={"path":AUX_PATH,"realpath":str(aux.resolve()),"owner":owner,"sha256":hashlib.sha256(raw).hexdigest(),
- "stat":{"dev":before.st_dev,"ino":before.st_ino,"mode":before.st_mode,"size":before.st_size,"mtime_ns":before.st_mtime_ns,"ctime_ns":before.st_ctime_ns},
+ "stat":{"dev":before.st_dev,"ino":before.st_ino,"mode":before.st_mode,"uid":before.st_uid,"gid":before.st_gid,"size":before.st_size,"mtime_ns":before.st_mtime_ns,"ctime_ns":before.st_ctime_ns},
  "parsed":parse_aux(raw)}
 if record["realpath"]!=AUX_PATH:raise RuntimeError("Auxiliary cache path redirect")
 (out/"generated-aux-cache.bin").write_bytes(raw)
