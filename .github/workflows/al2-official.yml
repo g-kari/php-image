@@ -22,26 +22,9 @@ jobs:
         run: |
           python3 scripts/classify-ci.py --self-test
           python3 scripts/classify-ci.py
-  preflight:
+  verify:
     needs: changes
     if: github.event_name == 'pull_request' && needs.changes.outputs.official == 'true'
-    name: Vendor baseline preflight PHP ${{ matrix.series }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        series: ['7.4', '8.0', '8.1']
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-      - name: Cheap credential-free vendor/SAPI/fixture checks before any PR compiler job
-        run: bash al2-official/ci.sh '${{ matrix.series }}' preflight
-  verify:
-    needs: [changes, preflight]
-    if: false
-    # Diagnostic hold: unexplained baseline failures must be captured/classified before expensive compiles.
     name: Read-only official AL2 PHP ${{ matrix.series }}
     runs-on: ubuntu-24.04
     timeout-minutes: 100
@@ -55,14 +38,6 @@ jobs:
           persist-credentials: false
       - name: Official PHPT plus exact packaged cohort runtime, update and rollback
         run: bash al2-official/ci.sh '${{ matrix.series }}'
-  baseline-diagnosis-hold:
-    needs: [changes, preflight]
-    if: always() && github.event_name == 'pull_request' && needs.changes.outputs.official == 'true'
-    runs-on: ubuntu-24.04
-    steps:
-      - run: |
-          echo "Diagnostic preflight only. Full PR verification is deliberately held until prior unexplained SAPI failures are classified."
-          exit 1
   publish:
     needs: changes
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'g-kari/php-image' && needs.changes.outputs.official == 'true'
