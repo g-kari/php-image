@@ -99,6 +99,18 @@ def stage(source,lockfile,series,dest):
         output.append({"rpm":item["file"],"sha256":item["sha256"],"identity":identity,"signature":signature,"headers":copied})
     (dest/"manifest.json").write_text(json.dumps({"series":series,"packages":output},sort_keys=True,indent=2))
     print("AUTHENTICATED_BUILD_HEADER_SDK_STAGED series="+series+" packages="+str(len(output)))
+def unit_recipe(command,index,pic_flags="-fPIC -DPIC"):
+    prefix="$(LIBTOOL) --mode=compile "
+    require(command.startswith("\t"+prefix+"$(CC) "),"unknown actual client compiler wrapper")
+    raw=command[1+len(prefix):]
+    require(raw.count("-prefer-pic")<=1 and "-prefer-non-pic" not in raw,"unsupported libtool PIC mode")
+    raw=raw.replace("-prefer-pic",pic_flags)
+    require(not any(token in raw for token in (";","&&","||",chr(96),"\n","--sysroot","-isysroot","-nostdinc")),"unexpected client compiler search/shell override")
+    match=re.fullmatch(r"(.+) -c (/[A-Za-z0-9_./+-]+\.c) -o ([A-Za-z0-9_./+-]+\.lo)",raw)
+    require(match is not None,"unknown actual client compile recipe")
+    stem="sdk-unit-"+str(index)
+    transformed=match[1]+" -E -H -dM "+match[2]+" > "+stem+"-macros.txt 2> "+stem+"-headers.txt"
+    return stem,transformed,match[2]
 def probe(dest,build):
     manifest=json.load(open(dest/"manifest.json"));items=manifest["packages"]
     if not items:return
@@ -137,10 +149,45 @@ def probe(dest,build):
     rules=(build/"Makefile.objects").read_text()
     relevant=[line for line in rules.splitlines() if line.startswith("\t") and re.search(r"/ext/(curl|pgsql|pdo_pgsql)/",line)]
     require(relevant or build.name not in ("build-cgi","build-ztscli"),"actual client compile rules missing")
-    # Preserve the real extension commands for independent source/build -I and extension-specific flag inspection.
     (build/"sdk-extension-compile-rules.txt").write_text("\n".join(relevant)+"\n")
-    for command in relevant:
-        require("--sysroot" not in command and "-isysroot" not in command and "-nostdinc" not in command,"unsupported compiler header search override")
+    # Reuse each actual object recipe's exact flags/order/source, removing only libtool and -c/-o.
+    # This includes source/build -I and extension-specific flags absent from COMMON_FLAGS.
+    unit_probes=[]
+    config=run(["/bin/sh",str(build/"libtool"),"--config"]).decode()
+    pic=re.findall(r"(?m)^pic_flag=['\"]([^'\"]*)['\"]$",config)
+    require(len(pic)==1 and re.fullmatch(r"\s*-fPIC(?:\s+-DPIC)?\s*",pic[0]) is not None,"unknown actual libtool PIC expansion")
+    for index,command in enumerate(relevant):
+        stem,recipe,source=unit_recipe(command,index,pic[0])
+        unit_probes.append({"stem":stem,"recipe":recipe,"source":source})
+    if unit_probes:
+        mk=dest/"unit-probes.mk"
+        mk.write_text(".PHONY: sdk-actual-units\nsdk-actual-units:\n"+"".join("\t"+item["recipe"]+"\n" for item in unit_probes))
+        run(["make","--no-print-directory","-f","Makefile","-f",str(mk),"sdk-actual-units"])
+    all_copied={relative for relative in inventory_all}
+    client_basenames={Path(relative).name for relative in all_copied}
+    for item in unit_probes:
+        trace_path=build/(item["stem"]+"-headers.txt")
+        unit_trace=trace_path.read_text()
+        seen_unit=set()
+        for line in unit_trace.splitlines():
+            match=re.match(r"^\.+ (/.+)$",line)
+            if not match:continue
+            actual=Path(match[1]).resolve()
+            if include in actual.parents:
+                relative=str(actual.relative_to(include))
+                require(relative in inventory_all and hashlib.sha256(actual.read_bytes()).hexdigest()==inventory_all[relative]["sha256"],"actual unit SDK bytes changed")
+                seen_unit.add(relative)
+            elif actual.name in client_basenames and ("/curl/" in str(actual) or manifest["series"]=="7.4"):
+                raise RuntimeError("Build SDK: actual client unit mixed system header "+str(actual))
+            if "/openssl/" in str(actual) and "/ext/openssl/" not in str(actual):
+                require(str(actual).startswith("/usr/include/openssl/"),"actual unit OpenSSL header changed")
+        if "/ext/curl/" in item["source"]:
+            require({"curl/curl.h","curl/curlver.h","curl/system.h"}<=seen_unit,"actual curl unit missing SDK closure")
+        elif manifest["series"]=="7.4":
+            require({"libpq-fe.h","postgres_ext.h"}<=seen_unit,"actual PostgreSQL unit missing SDK closure")
+        item["actual_sdk_headers"]=sorted(seen_unit)
+        item["trace_sha256"]=hashlib.sha256(trace_path.read_bytes()).hexdigest()
+    (build/"sdk-actual-unit-probes.json").write_text(json.dumps(unit_probes,sort_keys=True,indent=2))
     expected="7.79.1" if manifest["series"]=="7.4" else "7.88.1"
     require('#define LIBCURL_VERSION "'+expected+'"' in macros,"compiler curl version")
     (build/"sdk-probe-result.json").write_text(json.dumps({"status":"passed","series":manifest["series"],"sdk_headers":sorted(seen),"compiler_trace":trace,"macro_sha256":hashlib.sha256(macros.encode()).hexdigest()},indent=2))

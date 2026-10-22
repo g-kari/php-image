@@ -3,7 +3,7 @@
 This replaces the unshipped custom full-feature experiment. Existing seven separate-prefix/FPM releases remain immutable and are a different artifact family.
 
 ## Scope
-Only x86_64 PHP 7.4.33 / 8.0.30 / 8.1.34 are rebuilt from exact signed AWS source RPMs. All vendor patches, configure flags, SAPIs, extension selection, 28/26/26 normal binary splits, names, paths, config, scriptlets and services are retained. The spec changes add the complete official two-CVE commit after vendor patches and append .cve2026_109618_109619.1 to Release. The full source RPM and original/modified specs accompany publication.
+Only x86_64 PHP 7.4.33 / 8.0.30 / 8.1.34 are rebuilt from exact signed AWS source RPMs. All vendor patches, configure flags, SAPIs, extension selection, 28/26/26 normal binary splits, names, paths, config, scriptlets and services are retained. The spec changes add the complete official two-CVE commit after vendor patches, append .cve2026_109618_109619.1 to Release, and include the authenticated build-only SDK preparation detailed below where needed. The full source RPM and original/modified specs accompany publication.
 
 For 8.2 use [AWS official 8.2.35-1.amzn2.0.1](https://alas.aws.amazon.com/AL2/ALAS2PHP8.2-2026-015.html), which explicitly addresses both CVEs. The obsolete 8.2.34 custom-backport candidate is not published.
 

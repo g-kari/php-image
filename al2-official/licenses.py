@@ -45,7 +45,13 @@ if sdk:
     import runpy
     archive_members=runpy.run_path("/work/al2-official/build-sdk.py")["members"]
     srpm_data={name:data for name,mode,nlink,data in archive_members(subprocess.check_output(["rpm2cpio",str(source_rpms[0])]))}
+    for name in ("build-sdk.py","build-sdk-lock.json"):
+        actual=srpm_data.get(name)
+        expected=Path("/work/al2-official",name).read_bytes()
+        if actual!=expected:raise RuntimeError("Embedded SDK helper/lock differs from reviewed recipe")
     sdkdest=dest/"build-sdk-inputs";sdkdest.mkdir()
+    for name in ("build-sdk.py","build-sdk-lock.json"):
+        (sdkdest/name).write_bytes(srpm_data[name])
     for item in sdk:
         data=srpm_data.get(item["file"])
         if data is None or digest(data)!=item["sha256"]:raise RuntimeError("SRPM SDK source input changed")

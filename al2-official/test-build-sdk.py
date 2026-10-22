@@ -26,4 +26,13 @@ for command,limit in (([sys.executable,"-c","print('abcdef')"],3),([sys.executab
     try:ns["bounded"](command,limit)
     except RuntimeError:pass
     else:raise RuntimeError("Bounded payload failure accepted")
+recipe="\t$(LIBTOOL) --mode=compile $(CC) -Iext/curl/ -I/source/ext/curl/ $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) -DFIXTURE=1 -c /source/ext/curl/interface.c -o ext/curl/interface.lo"
+stem,transformed,source=ns["unit_recipe"](recipe,0)
+if transformed!="$(CC) -Iext/curl/ -I/source/ext/curl/ $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) -DFIXTURE=1 -E -H -dM /source/ext/curl/interface.c > sdk-unit-0-macros.txt 2> sdk-unit-0-headers.txt":raise RuntimeError("Actual client recipe flag order changed")
+pic_recipe=recipe.replace(" -c "," -prefer-pic -c ")
+if " -fPIC -DPIC -E " not in ns["unit_recipe"](pic_recipe,0)[1]:raise RuntimeError("Libtool PIC adaptation")
+for command in (recipe.replace(" -c "," --sysroot=/wrong -c "),recipe+" && true",recipe.replace("$(LIBTOOL) --mode=compile ",""),recipe.replace(" -o "," -unknown ")):
+    try:ns["unit_recipe"](command,0)
+    except RuntimeError:pass
+    else:raise RuntimeError("Unknown client recipe accepted")
 print("PINNED_HEADER_SDK_ARCHIVE_POLICY_UNIT_PASSED")
