@@ -112,20 +112,26 @@ for package in sorted(sdk.glob("*.rpm")):
     if not re.search(r"RSA.*[Ss]ignature.*key ID c87f5b1a: OK",sig,re.I) or re.search(r"(^|[^A-Za-z0-9_])(NOKEY|NOT OK|BAD|NOTTRUSTED)([^A-Za-z0-9_]|$)",sig,re.I):
         raise RuntimeError("Untrusted SDK RPM signature")
     identity=command(["rpm","-qp","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}|%{SOURCERPM}",str(package)])["output"]
+    fields=identity.split("|")
+    if len(fields)!=6 or [fields[0],fields[2],fields[3],fields[4]] not in selected:
+        raise RuntimeError("Downloaded SDK identity differs from selected repository record")
     files=command(["rpm","-qpl",str(package)])["output"].splitlines()
     headers={}
     for path in files:
         if not re.search(r"/(curl|curlver|pg_config|pg_config_ext|pg_config_manual)\.h$",path):continue
         if not path.startswith("/usr/include/") or ".." in Path(path).parts:raise RuntimeError("Unexpected header path")
-        result=command(["bash","-o","pipefail","-c",'rpm2cpio "$1" | cpio -i --quiet --to-stdout "$2"',"_",str(package),"."+path])
-        text=result["output"]
-        if not text or len(text)>300000:raise RuntimeError("Missing/oversized header")
+        result=subprocess.run(["bash","-o","pipefail","-c",'rpm2cpio "$1" | cpio -i --quiet --to-stdout "$2"',"_",str(package),"."+path],
+          stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=90)
+        raw=result.stdout
+        if result.returncode or result.stderr:raise RuntimeError("Header extraction failed: "+result.stderr.decode("utf-8","replace")[-4000:])
+        if not raw or len(raw)>300000:raise RuntimeError("Missing/oversized header")
+        text=raw.decode("utf-8","replace")
         if path.endswith("/curl.h") and "CURLINFO_LASTONE" not in text:raise RuntimeError("curl header extraction incomplete")
-        target=out/(package.name+"-"+Path(path).name);target.write_text(text)
+        target=out/(package.name+"-"+Path(path).name);target.write_bytes(raw)
         lines=text.splitlines();contexts=[]
         for index,line in enumerate(lines):
             if re.search(r"CURLINFO_LASTONE|CURLVERSION_NOW|CURLVERSION_(FIRST|SECOND|THIRD|FOURTH|FIFTH|SIXTH|SEVENTH|EIGHTH|NINTH|TENTH|ELEVENTH|TWELFTH)|CURL_MAX_READ_SIZE|LIBCURL_VERSION|PG_VERSION_STR|PG_VERSION_NUM",line):
                 contexts.append({"line":index+1,"text":line})
-        headers[path]={"sha256":hashlib.sha256(text.encode()).hexdigest(),"relevant_lines":contexts}
+        headers[path]={"sha256":hashlib.sha256(raw).hexdigest(),"raw_size":len(raw),"relevant_lines":contexts}
     emit("sdk-"+package.name,{"rpm_sha256":hashlib.sha256(package.read_bytes()).hexdigest(),"identity":identity,"signature":sig,"headers":headers})
 print("DEPENDENCY_INVENTORY_DIAGNOSTIC_COMPLETE series="+series)
