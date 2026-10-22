@@ -25,4 +25,12 @@ done < <(printf '%s\n' "${binaries[@]}") > /out/built-package-files.txt
 rpm -qa | sort > /out/build-rpms.txt
 cp /home/builder/rpmbuild/SPECS/php.spec /out/recipe.spec
 find /home/builder/rpmbuild/BUILD -type f \( -name 'config.nice' -o -name 'config.log' -o -name 'php_test_results_*.txt' -o -name '*.diff' \) -print > /out/build-evidence-paths.txt
+mkdir -p /out/build-evidence
+cd /home/builder/rpmbuild/BUILD
+while IFS= read -r -d '' file; do
+ cp --parents "$file" /out/build-evidence/
+done < <(find . -type f \\( -name 'config.nice' -o -name 'config.log' -o -name 'php_config.h' -o -name 'php_test_results_*.txt' -o -name '*.diff' \\) -print0)
+echo BUILT_PACKAGE_METADATA_BEGIN
+cat /out/built-package-metadata.txt
+echo BUILT_PACKAGE_METADATA_END
 echo "OFFICIAL_SECURITY_RPM_BUILD_PASSED series=$series packages=${#binaries[@]}"

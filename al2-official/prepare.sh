@@ -47,7 +47,7 @@ test -s php-upstream-cve2026.patch
 cp php-upstream-cve2026.patch /out/
 sha256sum php-upstream-cve2026.patch > /out/upstream-security-patch.sha256
 git -C /tmp/official-php-git diff --name-only "$parent" "$commit" > /out/upstream-security-patch-files.txt
-python3 /work/al2-official/prepare-spec.py /home/builder/rpmbuild/SPECS/official-php.spec /home/builder/rpmbuild/SPECS/php.spec /work/al2-official/source-lock.json "$series" | tee /out/spec-diff.txt
+python3 /work/al2-official/prepare-spec.py /home/builder/rpmbuild/SPECS/official-php.spec /home/builder/rpmbuild/SPECS/php.spec /work/al2-official/source-lock.json "$series" /home/builder/rpmbuild/SOURCES/php-upstream-cve2026.patch | tee /out/spec-diff.txt
 chown -R builder:builder /home/builder/rpmbuild
 # This phase only prepares official sources; no compile, installation, or publication.
 original_nevr="$(rpmspec -q --srpm --qf '%{NAME}|%{VERSION}|%{RELEASE}' /home/builder/rpmbuild/SPECS/official-php.spec)"

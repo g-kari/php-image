@@ -2,6 +2,9 @@ name: Validate official AL2 SRPM security backport
 on:
   push:
     branches: [build-al2-parity]
+concurrency:
+  group: official-al2-development-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
