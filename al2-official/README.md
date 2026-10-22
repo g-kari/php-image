@@ -1,13 +1,29 @@
-# Official AL2 SRPM security-backport rebuild
+# AWS-layout AL2 PHP security rebuild
 
-This supersedes the unshipped independent-prefix full-feature experiment in PR2. Existing seven published minimal artifacts remain immutable and are not this official-layout variant.
+This replaces the unshipped custom full-feature experiment. Existing seven separate-prefix/FPM releases remain immutable and are a different artifact family.
 
-The goal is to retain the exact per-series Amazon Linux 2 PHP source RPM, existing vendor patches, package names/splits, install paths, configuration, SAPIs, NTS/ZTS, extension selection, dependencies and service definitions. The intended spec differences are one complete official upstream two-CVE patch plus identifiable local Release metadata. No production or user computer installation is performed.
+## Scope
+Only x86_64 PHP 7.4.33 / 8.0.30 / 8.1.34 are rebuilt from exact signed AWS source RPMs. All vendor patches, configure flags, SAPIs, extension selection, 28/26/26 normal binary splits, names, paths, config, scriptlets and services are retained. The spec changes add the complete official two-CVE commit after vendor patches and append .cve2026_109618_109619.1 to Release. The full source RPM and original/modified specs accompany publication.
 
-Source versions stay at the pinned AWS baseline (7.4.33, 8.0.30, 8.1.34, 8.2.34). The latter receives the normal 8.2 upstream security commit as a backport, not a false 8.2.35 version claim. Legacy sources receive the official EOL minimal mitigation and retain its OOM/implied feature tradeoffs.
+For 8.2 use [AWS official 8.2.35-1.amzn2.0.1](https://alas.aws.amazon.com/AL2/ALAS2PHP8.2-2026-015.html), which explicitly addresses both CVEs. The obsolete 8.2.34 custom-backport candidate is not published.
 
-The first stage only verifies the original SRPM SHA256/signature, records its spec, obtains the pinned official PHP commit and complete parent-to-commit patch, and applies it with zero fuzz after the existing vendor patches. A preparation pass is not a binary/runtime/compatibility success.
+These are unofficial, unsigned rebuilds, not Amazon-signed packages. Release/build IDs, compiler/dependency snapshots, timestamps and native bytes differ; bit-for-bit equivalence and all-application/private-extension ABI compatibility are not promised. Named zts binaries are tested by actual PHP_ZTS, not assumed thread-safe: the original 8.x vendor flag may yield non-ZTS behavior.
 
-Our resulting RPMs will not be Amazon-signed official packages. Local Release/provenance, unsigned signatures, compiler/dependency snapshot, timestamps, build IDs, checksums and resulting bytes can differ even if functional changes are restricted to the security patch. Exact bit-for-bit reproduction is not promised. Before distribution, compare full package metadata/files/configuration, provided API/ABI, native linking and real NTS/ZTS/SAPI/module behavior against the acquired official RPMs, including unchanged genuine PECL packages where available. System libraries and global security settings are not replaced or weakened.
+## Test gates, without concealing failures
+The AWS spec's original %check is retained: build-apache CLI, make test, NO_INTERACTION=1 REPORT_EXIT_STATUS=1 MALLOC_CHECK_=2, SKIP_ONLINE_TESTS=1 SKIP_IO_CAPTURE_TESTS=1, unset TZ/LANG/LC_ALL. The vendor spec comments out exit1 after test failure. Thus a successful rpmbuild is not a full-suite pass.
 
-The original runtime layout also preserves vendor scriptlets and service integration. Unlike the old isolated-prefix RPMs, installing this official-layout variant can replace an existing PHP installation and affect handlers/services. No such production installation is authorized here. For EOL series the patch specifically exits the worker process immediately on OOM (no normal shutdown callbacks) and disables built-in session upload-progress callbacks; ordinary file upload remains available.
+The full original PHPT log, PASS/FAIL/SKIP/XFAIL/WARN/BORK statistics, paired source fixtures and diff files are retained. A separate fail-closed policy requires exact reviewed known diffs (only source-root/version and random six-character upload tempfile normalization). Unknown changes, crashes or timeout differences stop publication. Original FAILs stay FAIL. Historical expired SNI fixtures get separate strict TLS positive/negative/positive checks; Tehran is compared with an unchanged installed vendor binary and unchanged tzdata. This is not a blanket skip list.
+
+Because the vendor suite uses a without-shared engine and many SKIPs, additional bounded checks use the actual installed full RPM cohort: normal/named-ZTS CLI/phpdbg, CGI, FPM, private prefork Apache DSOs and embedded library; 47/49 core extension feature coverage and genuine vendor PECL runtime/devel packages; serialization/cache, DB/LDAP client registration (not live remote servers), real image/ZIP/DBA/PDO-SQLite operations, TLS, upload/session/progress/OOM recovery. CLI OOM exit code and FPM worker exit1 are distinguished from signals/crashes. Public TLS client operations run in both orders, not a claimed reversed MINIT/loader initialization.
+
+Metadata, paths/modes/owners/config bytes/scriptlets/dependencies/License, header/API layouts and ELF exports/version providers are compared with exact AWS binaries. All main subpackages update together in a fresh AL2 container with locally modified config fixtures; preserved configs and system libraries are checked, then saved original RPMs are restored and compared. The tests do not activate a real systemd host unit or production handler, prove all private ABIs, or cover every application/FIPS/proxy/server integration.
+
+## Tradeoffs and deployment boundary
+The official EOL minimal patch exits the executing OOM process with code1 without normal shutdown callbacks and disables builtin session upload-progress even when INI enables it; ordinary upload remains. 7.4 adds the total multipart-part limit (8.0/8.1 already had it). API numbers remaining equal do not prove OPcache private-internal compatibility; update the matching cohort and replace all old workers using your reviewed deployment plan. Do not delete OPcache caches blindly.
+
+Unlike the old separate-prefix RPMs, these packages can replace system PHP and affect existing handlers/services. No real server or user computer is installed/modified by CI. Do not install all optional packages merely because the complete split is available. Rollback to saved vulnerable originals is a test/contingency, not a secure steady state.
+
+## Publication and licensing
+Only a normal reviewed main merge enables the trusted-main job. PR jobs are read-only. The main job rebuilds, runs every gate, and publishes those exact tested bytes via a draft Release after full asset hash/size verification and current-main checks. No new keys, credentials, yum signing repository, paid storage or permanent permissions are introduced. See [LICENSE-NOTICE.md](../LICENSE-NOTICE.md), the complete source RPM and matching upstream-license-notices.tar.gz; MIT covers only original repository scripts.
+
+Unverified or failed targets are never promoted. Existing minimal releases are not overwritten.

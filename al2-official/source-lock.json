@@ -35,17 +35,11 @@
       "parent": "6f82565f12630ba320c52c96e28160189b15ecbf",
       "patch_profile": "official EOL minimal mitigation",
       "trivial": ""
-    },
-    "8.2": {
-      "name": "php",
-      "version": "8.2.34",
-      "release": "1.amzn2.0.1",
-      "srpm": "php-8.2.34-1.amzn2.0.1.src.rpm",
-      "sha256": "6b5f939d92d22c10c53732ea2748dcfa82a99ffd8872dc645e8e840da2b637f9",
-      "commit": "01a40e89fbfc499936e3b05888d8f00bfde886df",
-      "parent": "512c04e39f674dbf4133b8fbbd381cd8c2df6836",
-      "patch_profile": "normal supported-series two-CVE fix backport",
-      "trivial": ".0.1"
     }
+  },
+  "official_82": {
+    "version": "8.2.35-1.amzn2.0.1",
+    "advisory": "https://alas.aws.amazon.com/AL2/ALAS2PHP8.2-2026-015.html",
+    "policy": "Use AWS-signed official packages; no custom 8.2.34 backport is published."
   }
 }

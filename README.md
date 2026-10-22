@@ -2,14 +2,22 @@
 
 Amazon Linux 2 PHP 7.4 / 8.0 / 8.1 / 8.2 self-build RPMs, plus non-AL2 PHP 7.4 / 8.0 / 8.1 FPM container images.
 
-**AL2 and non-AL2 FPM 7.4/8.0/8.1 are published after independent review and bounded build/runtime checks; all three registry images passed anonymous digest pulls. AL2 8.2 is still a separate in-progress deliverable. See the published artifact links below.**
+**Existing separate-prefix AL2 7.4/8.0/8.1/8.2 RPMs and non-AL2 FPM 7.4/8.0/8.1 images are published after bounded checks. All three registry images passed anonymous digest pulls. The newer AWS-layout 7.4/8.0/8.1 complete split-RPM rebuild is a different, not-yet-published deliverable; see [its scope and QA gates](al2-official/README.md). For system-layout 8.2, prefer [AWS official 8.2.35](https://alas.aws.amazon.com/AL2/ALAS2PHP8.2-2026-015.html), not a custom 8.2.34 backport.**
+
+License scope, bundled notices and verification status are explicit in [LICENSE-NOTICE.md](LICENSE-NOTICE.md). Repository MIT does not relicense PHP, Zend, extensions or OS/image layers.
 
 For PHP 7.4/8.0/8.1, this project packages the PHP project's **minimal EOL mitigations** for CVE-2026-109618 and CVE-2026-109619. It does not restore upstream support, fix every known vulnerability, or make Amazon Linux 2 or old Debian releases supported. Upgrade to maintained PHP and OS versions as soon as possible.
 
-## Scope
+## Artifact families
+
+1. Existing independent-prefix RPMs and official-base FPM images: immutable published artifacts below. AL2 8.2: [published limited-prefix build](https://github.com/g-kari/php-image/releases/tag/al2-8.2-0bcc2d7d9d8d).
+2. [New official AWS SRPM/spec layout rebuild](al2-official/README.md): full 7.4/8.0/8.1 split set with unchanged vendor configuration, pending final QA/review/publication. This family replaces matching system PHP packages rather than installing in /opt.
+3. AWS official 8.2.35 is preferred for normal AL2 8.2 packages.
+
+## Scope of the earlier separate-prefix and FPM builds
 
 - Fixed complete upstream source trees, not a partial patch selection.
-- AL2 packages use a separate prefix and package names. They do **not** replace AWS PHP RPMs, system libraries, handlers, PATH, services, configuration or sockets.
+- The previously published minimal AL2 packages use a separate prefix and package names. They do **not** replace AWS PHP RPMs, system libraries, handlers, PATH, services, configuration or sockets.
 - RPM/SRPM and FPM container results are tracked separately for each version and CPU.
 - Initial CPU target is x86_64 / linux/amd64 only.
 - No production service starts automatically.

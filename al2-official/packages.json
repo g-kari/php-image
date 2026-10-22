@@ -1,0 +1,188 @@
+{
+  "schema": 1,
+  "arch": "x86_64",
+  "main": {
+    "7.4": [
+      "php",
+      "php-bcmath",
+      "php-cli",
+      "php-common",
+      "php-dba",
+      "php-dbg",
+      "php-devel",
+      "php-embedded",
+      "php-enchant",
+      "php-fpm",
+      "php-gd",
+      "php-gmp",
+      "php-intl",
+      "php-json",
+      "php-ldap",
+      "php-mbstring",
+      "php-mysqlnd",
+      "php-odbc",
+      "php-opcache",
+      "php-pdo",
+      "php-pgsql",
+      "php-process",
+      "php-pspell",
+      "php-snmp",
+      "php-soap",
+      "php-sodium",
+      "php-xml",
+      "php-xmlrpc"
+    ],
+    "8.0": [
+      "php",
+      "php-bcmath",
+      "php-cli",
+      "php-common",
+      "php-dba",
+      "php-dbg",
+      "php-devel",
+      "php-embedded",
+      "php-enchant",
+      "php-fpm",
+      "php-gd",
+      "php-gmp",
+      "php-intl",
+      "php-ldap",
+      "php-mbstring",
+      "php-mysqlnd",
+      "php-odbc",
+      "php-opcache",
+      "php-pdo",
+      "php-pgsql",
+      "php-process",
+      "php-pspell",
+      "php-snmp",
+      "php-soap",
+      "php-sodium",
+      "php-xml"
+    ],
+    "8.1": [
+      "php",
+      "php-bcmath",
+      "php-cli",
+      "php-common",
+      "php-dba",
+      "php-dbg",
+      "php-devel",
+      "php-embedded",
+      "php-enchant",
+      "php-fpm",
+      "php-gd",
+      "php-gmp",
+      "php-intl",
+      "php-ldap",
+      "php-mbstring",
+      "php-mysqlnd",
+      "php-odbc",
+      "php-opcache",
+      "php-pdo",
+      "php-pgsql",
+      "php-process",
+      "php-pspell",
+      "php-snmp",
+      "php-soap",
+      "php-sodium",
+      "php-xml"
+    ]
+  },
+  "pecl": {
+    "7.4": [
+      {
+        "name": "php-pecl-apcu",
+        "extension": "apcu",
+        "version": "5.1.18",
+        "release": "1.amzn2",
+        "sha256": "33e7a4e1075e3ae116eb1c6f23106e6cc5b9439c68f9afc8f5c0d19d20cecbe0",
+        "devel": "php-pecl-apcu-devel"
+      },
+      {
+        "name": "php-pecl-igbinary",
+        "extension": "igbinary",
+        "version": "3.1.2",
+        "release": "1.amzn2",
+        "sha256": "f222763792901fb2305c7cdac327566941c5a7e3882fd3f6bbddd3e0f7aadc84",
+        "devel": "php-pecl-igbinary-devel"
+      },
+      {
+        "name": "php-pecl-imagick",
+        "extension": "imagick",
+        "version": "3.5.1",
+        "release": "1.amzn2",
+        "sha256": "b7b4d101306454bc12f129f2bddfc6e56c441ebcd5ef356c051552abc0528a61",
+        "devel": "php-pecl-imagick-devel"
+      },
+      {
+        "name": "php-pecl-mailparse",
+        "extension": "mailparse",
+        "version": "3.1.0",
+        "release": "1.amzn2.0.2",
+        "sha256": "2fa740d37ea4d8d3945fbfdbffea2d030c95255f65b3c4b49057bf561231b7fc"
+      },
+      {
+        "name": "php-pecl-memcache",
+        "extension": "memcache",
+        "version": "4.0.5.2",
+        "release": "1.amzn2",
+        "sha256": "2d90284b81f15b24028101b093d0eee5ae43da26b94b1b204eb094b91c58a3ed"
+      },
+      {
+        "name": "php-pecl-memcached",
+        "extension": "memcached",
+        "version": "3.1.5",
+        "release": "1.amzn2",
+        "sha256": "bbd02088050292fedf4b365ed0e5543f74412015146372c216916fbc2409eb5c"
+      },
+      {
+        "name": "php-pecl-msgpack",
+        "extension": "msgpack",
+        "version": "2.1.0",
+        "release": "1.amzn2",
+        "sha256": "c6650be24b67cc8b0b5080382a809dd6bc6becc9ec2f64e50bfc7922d6481875",
+        "devel": "php-pecl-msgpack-devel"
+      },
+      {
+        "name": "php-pecl-oauth",
+        "extension": "oauth",
+        "version": "2.0.5",
+        "release": "1.amzn2",
+        "sha256": "b568b83dda38dfc788efff083a3256ca9ca055072db71b05e5c74f93fde8be91"
+      },
+      {
+        "name": "php-pecl-redis",
+        "extension": "redis",
+        "version": "5.2.1",
+        "release": "1.amzn2",
+        "sha256": "e87248dd45eee1ec934631141a783cd56086e0ec64facf3806ad7440dcda4010"
+      },
+      {
+        "name": "php-pecl-ssh2",
+        "extension": "ssh2",
+        "version": "1.2",
+        "release": "1.amzn2",
+        "sha256": "8672bdb32d8f9472b36b9a5b470f1bfcd790fcd4b11fc1fa7064c6f9b969dc4d"
+      },
+      {
+        "name": "php-pecl-uuid",
+        "extension": "uuid",
+        "version": "1.1.0",
+        "release": "1.amzn2",
+        "sha256": "4b3e2fd6b976e67fe13b5a2ad02ba0b1ab4cbf6fd42b5ec272bec4f506b637ce"
+      }
+    ],
+    "8.0": [
+      {
+        "name": "php-pecl-imagick",
+        "extension": "imagick",
+        "version": "3.5.1",
+        "release": "1.amzn2.0.1",
+        "sha256": "ac0f9385652289b90c5a67342428043e31e008d663afc4294e70a246696018a7",
+        "devel": "php-pecl-imagick-devel"
+      }
+    ],
+    "8.1": []
+  }
+}

@@ -1,34 +1,62 @@
-name: Validate official AL2 SRPM security backport
+name: Verify and distribute official-layout AL2 PHP RPMs
 on:
+  pull_request:
   push:
-    branches: [build-al2-parity]
-concurrency:
-  group: official-al2-development-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [main]
 permissions:
   contents: read
+concurrency:
+  group: official-al2-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-  build:
-    if: github.repository == 'g-kari/php-image' && github.ref == 'refs/heads/build-al2-parity'
+  changes:
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    outputs:
+      official: ${{ steps.scope.outputs.official }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        run: |
+          python3 scripts/classify-ci.py --self-test
+          python3 scripts/classify-ci.py
+  verify:
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.official == 'true'
+    name: Read-only official AL2 PHP ${{ matrix.series }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
     strategy:
       fail-fast: false
       matrix:
-        series: ['7.4', '8.0', '8.1', '8.2']
+        series: ['7.4', '8.0', '8.1']
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Build the original vendor subpackages with the exact upstream security patch; no publication
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p out
-          base="$(python3 -c 'import json;print(json.load(open("al2-official/source-lock.json"))["base"])')"
-          docker run --rm --platform linux/amd64 --memory 6g --cpus 2 --pids-limit 512 \
-            -e CI_DISPOSABLE_BUILD=1 -v "$PWD:/work:ro" -v "$PWD/out:/out" \
-            "$base" bash /work/al2-official/build.sh '${{ matrix.series }}' 2>&1 | tee out/build.log
-          grep -q '^OFFICIAL_SECURITY_RPM_BUILD_PASSED ' out/build.log
-      - name: No binary publication in this preparation stage
-        run: echo "Official-layout compilation is a development gate only. ABI/runtime/upgrade/rollback, independent review and publication remain separate gates."
+      - name: Official PHPT plus exact packaged cohort runtime, update and rollback
+        run: bash al2-official/ci.sh '${{ matrix.series }}'
+  publish:
+    needs: changes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'g-kari/php-image' && needs.changes.outputs.official == 'true'
+    name: Build test publish official AL2 PHP ${{ matrix.series }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        series: ['7.4', '8.0', '8.1']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: All gates on the exact artifacts without publication credentials
+        run: bash al2-official/ci.sh '${{ matrix.series }}'
+      - name: Publish this exact tested binary cohort and full SRPM
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash al2-official/publish.sh '${{ matrix.series }}'

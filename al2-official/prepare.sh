@@ -2,7 +2,7 @@
 set -euo pipefail
 series="${1:?}"
 test "${CI_DISPOSABLE_BUILD:-}" = 1 && test -f /.dockerenv
-case "$series" in 7.4|8.0|8.1|8.2) ;; *) exit 2;; esac
+case "$series" in 7.4|8.0|8.1) ;; *) exit 2;; esac
 . /etc/os-release
 test "$ID" = amzn && test "$VERSION_ID" = 2 && test "$(uname -m)" = x86_64
 yum install -y amazon-linux-extras yum-utils rpm-build cpio git patch python3
@@ -56,6 +56,8 @@ test "$original_nevr" = "php|${pins[2]}|${pins[3]}"
 test "$patched_nevr" = "$original_nevr.cve2026_109618_109619.1"
 printf 'original=%s\npatched=%s\n' "$original_nevr" "$patched_nevr" | tee /out/parsed-nevr.txt
 su - builder -c "rpmbuild -bp --nodeps rpmbuild/SPECS/php.spec"
+# Prepared vendor-plus-security source is retained for exact PHPT fixture/result comparison.
+tar -C /home/builder/rpmbuild/BUILD -czf /out/prepared-source.tar.gz .
 cp /home/builder/rpmbuild/SPECS/php.spec /out/recipe.spec
 rpm -qa | sort > /out/preparation-rpms.txt
 echo "OFFICIAL_SECURITY_PATCH_PREPARATION_PASSED series=$series commit=$commit srpm=$srpm"
