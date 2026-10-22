@@ -1,0 +1,52 @@
+name: Inspect actual official AL2 PHP runtime baseline
+on:
+  push:
+    branches: [inspect-official-al2-runtime]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        series: ['7.4','8.0','8.1','8.2']
+    steps:
+      - name: Install and inspect only official packages inside disposable AL2
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm -i --platform linux/amd64 --memory 2g --cpus 2 --pids-limit 256 \
+            'docker.io/library/amazonlinux:2@sha256:f86b99704b49b2fde6bf42b4c5257fcb0b1e0946509da5d6cea08c4227618433' bash -s -- '${{ matrix.series }}' <<'SH' | tee baseline-runtime.txt
+          set -euo pipefail
+          series="$1"
+          yum install -y amazon-linux-extras yum-utils
+          amazon-linux-extras enable "php$series"
+          topic="amzn2extra-php$series"
+          repoquery --disablerepo='*' --enablerepo="$topic" --archlist=x86_64,noarch --qf '%{name}|%{sourcerpm}' 'php*' | sort -u > /tmp/topics
+          awk -F'|' '$2 ~ /^php-[0-9]/ {print $1}' /tmp/topics > /tmp/main-names
+          test "$(wc -l < /tmp/main-names)" -ge 26
+          mapfile -t packages < /tmp/main-names
+          yum install -y "${packages[@]}"
+          echo OFFICIAL_RUNTIME_METADATA_BEGIN
+          rpm -qa --qf '%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}\n' | grep '^php' | sort
+          echo OFFICIAL_RUNTIME_METADATA_END
+          for binary in /usr/bin/php /usr/bin/zts-php; do
+            test -x "$binary"
+            "$binary" --ini
+            "$binary" -r 'echo json_encode(["binary"=>PHP_BINARY,"version"=>PHP_VERSION,"sapi"=>PHP_SAPI,"zts"=>(bool)PHP_ZTS,"modules"=>get_loaded_extensions(),"pcntl"=>function_exists("pcntl_fork"),"readline"=>extension_loaded("readline"),"mhash"=>function_exists("mhash"),"openssl"=>OPENSSL_VERSION_TEXT,"curl"=>curl_version(),"dba"=>dba_handlers(),"gd"=>gd_info(),"pdo"=>PDO::getAvailableDrivers()],JSON_PRETTY_PRINT),PHP_EOL;'
+          done
+          for config in /usr/bin/php-config /usr/bin/zts-php-config; do
+            test -x "$config"
+            "$config" --version
+            "$config" --configure-options
+          done
+          echo OFFICIAL_PAYLOAD_HASHES_BEGIN
+          find /usr/lib64/php/modules /usr/lib64/php-zts/modules -type f -name '*.so' -print0 | sort -z | xargs -0 sha256sum
+          sha256sum /usr/bin/php /usr/bin/zts-php /usr/bin/php-cgi /usr/sbin/php-fpm
+          echo OFFICIAL_PAYLOAD_HASHES_END
+          rpm -q --provides php-common php-pdo
+          echo "OFFICIAL_RUNTIME_BASELINE_COMPLETE series=$series"
+          SH
+          grep -q '^OFFICIAL_RUNTIME_BASELINE_COMPLETE ' baseline-runtime.txt
