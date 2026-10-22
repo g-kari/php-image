@@ -32,12 +32,12 @@ nonzero=copy.deepcopy(a)
 base=0x7f0000000000
 nonzero["features"]["process_local_hook"]["maps"]=[f"{base+0x1000:x}-{base+0x11000:x} r-xp 00001000 00:30 9225599                    {MODULE}"]
 if canonical_payload(nonzero)!=canonical_payload(a):raise RuntimeError("Nonzero file mapping offset rejected")
-x=copy.deepcopy(nonzero);x["features"]["process_local_hook"]["maps"][0]=x["features"]["process_local_hook"]["maps"][0].replace("00001000","00001001");bad.append(x)
+x=copy.deepcopy(nonzero);x["features"]["process_local_hook"]["maps"][0]=x["features"]["process_local_hook"]["maps"][0].replace(" r-xp 00001000 "," r-xp 00001001 ");bad.append(x)
 x=copy.deepcopy(a);x["features"]["process_local_hook"]["maps"]=[f"{base:x}-{base+0x1000:x} r-xp 00000000 00:30 9225599                    {MODULE}"];bad.append(x)
-for value in bad:
+for index,value in enumerate(bad):
     try:canonical_payload(value)
     except RuntimeError:pass
-    else:raise RuntimeError("Invalid pointer evidence accepted")
+    else:raise RuntimeError("Invalid pointer evidence accepted case="+str(index))
 x=copy.deepcopy(a);x["features"]["defined_constants"]["ordinary"]["value"]=43
 if canonical_payload(a)==canonical_payload(x):raise RuntimeError("Ordinary constant difference hidden")
 plain={"features":{"series":"8.1","defined_constants":{"CURLINFO_LASTONE":{"type":"integer","value":64}},"process_local_hook":None}}
