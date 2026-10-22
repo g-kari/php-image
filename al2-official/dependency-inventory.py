@@ -23,15 +23,30 @@ def digest():
         if p.is_file():
             result[name]={"sha256":hashlib.sha256(p.read_bytes()).hexdigest(),"realpath":str(p.resolve())}
     return result
-code=r"""$names=["CURLINFO_LASTONE","CURLVERSION_NOW","CURL_MAX_READ_SIZE","PGSQL_LIBPQ_VERSION_STR","\\0apc_register_serializer-0"];
+code=r"""$names=["CURLINFO_LASTONE","CURLVERSION_NOW","CURL_MAX_READ_SIZE","PGSQL_LIBPQ_VERSION_STR"];
 $result=[];foreach($names as $name){if(defined($name)){$value=constant($name);$result[$name]=["type"=>gettype($value),"value"=>$value];}}
 $all=get_defined_constants();foreach($all as $name=>$value){if(strpos($name,"apc_register_serializer")!==false){$result[$name]=["type"=>gettype($value),"value"=>$value];}}
 $maps=@file("/proc/self/maps",FILE_IGNORE_NEW_LINES);if($maps!==false){$result["apcu_maps"]=array_values(array_filter($maps,function($line){return strpos($line,"/apcu.so")!==false;}));}
 $curl=curl_version();$result["curl_runtime"]=["version"=>$curl["version"],"ssl_version"=>$curl["ssl_version"],"libz_version"=>$curl["libz_version"]];
 echo json_encode($result,JSON_THROW_ON_ERROR);"""
-observations=[json.loads(command(["php","-r",code])["output"]) for _ in range(2)]
+observations=[json.loads(command(["php","-d","apc.enable_cli=1","-r",code])["output"]) for _ in range(2)]
 emit("original-php-constants",observations)
 if series=="7.4":
+    offsets=[]
+    for observed in observations:
+        hook=observed.get("\x00apc_register_serializer-0")
+        if not isinstance(hook,dict) or hook.get("type")!="integer" or type(hook.get("value")) is not int or hook["value"]<=0:
+            raise RuntimeError("Exact APCu integer pointer observation missing")
+        matches=[]
+        for line in observed.get("apcu_maps",[]):
+            match=re.fullmatch(r"([0-9a-f]+)-([0-9a-f]+) ([rwxps-]+) ([0-9a-f]+) ([0-9a-f]+):([0-9a-f]+)\s+([0-9]+)\s+(.+)",line)
+            if match and int(match[1],16)<=hook["value"]<int(match[2],16):
+                if match[3]!="r-xp" or match[8]!="/usr/lib64/php/modules/apcu.so":raise RuntimeError("Unexpected APCu pointer mapping")
+                matches.append(int(match[4],16)+hook["value"]-int(match[1],16))
+        if len(matches)!=1:raise RuntimeError("APCu executable mapping missing/ambiguous")
+        offsets.append(matches[0])
+    emit("apcu-fresh-process-offsets",offsets)
+    if offsets[0]!=offsets[1]:raise RuntimeError("APCu offsets differ between fresh processes")
     source=json.load(open("/out/qa/vendor-pecl-audit.json"))
     apcu=[item for item in source["sources"] if item["name"]=="php-pecl-apcu"]
     if len(apcu)!=1:raise RuntimeError("APCu source inventory missing")
@@ -53,6 +68,15 @@ after=digest()
 changed={name:{"before":before.get(name),"after":after.get(name)} for name in sorted(set(before)|set(after)) if before.get(name)!=after.get(name)}
 emit("system-files-after-ldconfig-differences",changed)
 for name in changed:emit("changed-owner-"+str(len(name))+"-"+hashlib.sha256(name.encode()).hexdigest()[:8],command(["rpm","-qf",name]))
+# Reinstall only the exact already-verified, unchanged original main cohort.
+# This changes inode/cache bookkeeping without introducing a custom binary.
+originals=sorted(str(path) for path in Path("/out/vendor/main").glob("*.rpm"))
+if len(originals)!={"7.4":28,"8.0":26,"8.1":26}[series]:raise RuntimeError("Original cohort inventory changed")
+emit("original-cohort-reinstall",command(["yum","reinstall","-y",*originals],timeout=180))
+reinstalled=digest()
+changed_reinstall={name:{"before":after.get(name),"after":reinstalled.get(name)} for name in sorted(set(after)|set(reinstalled)) if after.get(name)!=reinstalled.get(name)}
+emit("system-files-after-original-reinstall-differences",changed_reinstall)
+for name in changed_reinstall:emit("reinstall-changed-owner-"+hashlib.sha256(name.encode()).hexdigest()[:8],command(["rpm","-qf",name]))
 query=command(["repoquery","--disablerepo=*","--enablerepo=amzn2-core","--show-duplicates","--qf","%{name}|%{version}|%{release}|%{arch}","libcurl-devel","postgresql-devel"])
 emit("available-sdk-nevras",query)
 records=[]

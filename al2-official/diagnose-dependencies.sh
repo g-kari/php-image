@@ -17,10 +17,11 @@ trap cleanup EXIT
 for series in 7.4 8.0 8.1; do
  mkdir "out/$series"
  cid="$(docker run -d --platform linux/amd64 --memory 3g --cpus 2 --pids-limit 512 -e CI_DISPOSABLE_BUILD=1 -v "$PWD:/work:ro" -v "$PWD/out/$series:/out" "$base" sleep infinity)"
- if ! docker exec "$cid" bash /work/al2-official/runtime.sh "$series" baseline > "out/$series/baseline.log" 2>&1; then
+ if ! docker exec "$cid" bash /work/al2-official/acquire-vendor.sh "$series" > "out/$series/baseline.log" 2>&1; then
   tail -n 160 "out/$series/baseline.log"; exit 1
  fi
  grep -E 'PASSED|INSTALLED|AUDIT_RECORDED' "out/$series/baseline.log" || true
+ docker exec "$cid" python3 /work/al2-official/audit-pecl.py "$series" /out/qa/vendor-pecl-audit.json
  docker exec "$cid" python3 /work/al2-official/dependency-inventory.py "$series"
  docker rm -f "$cid" >/dev/null; cid=""
 done
