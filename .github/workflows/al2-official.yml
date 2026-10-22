@@ -25,15 +25,15 @@ jobs:
   dependency-diagnostic:
     needs: changes
     if: github.event_name == 'pull_request' && needs.changes.outputs.official == 'true'
-    name: Read-only short dependency evidence (three series serial)
+    name: Read-only exact SDK header evidence
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Signed vendor constants, SDK headers and generated-cache evidence only
-        run: bash al2-official/diagnose-dependencies.sh
+      - name: Only five exact signed SDK packages and architecture-specific headers
+        run: bash al2-official/diagnose-sdk.sh
   diagnostic-hold:
     needs: [changes, dependency-diagnostic]
     if: always() && github.event_name == 'pull_request' && needs.changes.outputs.official == 'true'
