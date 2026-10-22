@@ -88,8 +88,26 @@ function al2_feature_probe($series, $sapi) {
         $constants[$name]=['type'=>$type,'value'=>$value];
     }
     ksort($constants);sort($resourceConstants);
+    $classes=[];
+    foreach (array_merge(get_declared_classes(),get_declared_interfaces()) as $name) {
+        $reflection=new ReflectionClass($name);
+        if (!$reflection->isInternal()) { continue; }
+        $methods=[];
+        foreach ($reflection->getMethods() as $method) { $methods[]=$method->getName(); }
+        sort($methods);
+        $classConstants=[];
+        foreach ($reflection->getConstants() as $key=>$value) {
+            $type=gettype($value);
+            if (is_float($value) && (is_infinite($value) || is_nan($value))) { $value=(string)$value; }
+            if (is_resource($value) || is_object($value)) { throw new RuntimeException('Unclassified internal class constant representation'); }
+            $classConstants[$key]=['type'=>$type,'value'=>$value];
+        }
+        ksort($classConstants);
+        $classes[$name]=['methods'=>$methods,'constants'=>$classConstants,'interface'=>$reflection->isInterface()];
+    }
+    ksort($classes);
     return ['series'=>$series,'sapi'=>PHP_SAPI,'version'=>PHP_VERSION,'zts'=>(bool)PHP_ZTS,
-      'modules'=>$loaded,'internal_function_names'=>$functions,'defined_constants'=>$constants,'resource_constant_names'=>$resourceConstants,'gd'=>$gd,'dba_handlers'=>$handlers,'pdo_drivers'=>$drivers,
+      'modules'=>$loaded,'internal_function_names'=>$functions,'internal_class_api'=>$classes,'defined_constants'=>$constants,'resource_constant_names'=>$resourceConstants,'gd'=>$gd,'dba_handlers'=>$handlers,'pdo_drivers'=>$drivers,
       'timezone_database'=>timezone_version_get(),'local_features'=>'passed',
       'limits'=>['Local APIs/roundtrips only, not database/LDAP/SNMP/FTP service interoperability.',
       'Named zts binary is recorded by actual PHP_ZTS, not assumed thread-safe.']];

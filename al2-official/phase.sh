@@ -36,8 +36,8 @@ for config in php-config zts-php-config; do
  # php-config describes php; zts-php-config describes zts-php.
  zts="$("$binary" -r 'echo (int)PHP_ZTS;')"
  read -r -a includes <<< "$("$config" --includes)"
- extra=(); if [[ "$zts" = 1 ]]; then extra=(-DZTS); fi
- gcc "${includes[@]}" "${extra[@]}" /work/al2-official/abi-probe.c -o "/tmp/abi-$config"
+ if [[ "$zts" = 1 ]]; then includes+=(-DZTS); fi
+ gcc "${includes[@]}" /work/al2-official/abi-probe.c -o "/tmp/abi-$config"
  "/tmp/abi-$config" > "$dir/abi-$config.txt"
  "$config" --phpapi > "$dir/api-$config.txt"
 done

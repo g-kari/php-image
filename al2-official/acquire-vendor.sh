@@ -20,9 +20,9 @@ mapfile -t requests < /tmp/vendor-main-requests
 yumdownloader --disablerepo='*' --enablerepo="$topic" --destdir=/out/vendor/main "${requests[@]}"
 verify_signature() {
  local package="$1" report="$2"
- rpm --checksig --verbose "$package" > "$report"
- grep -Eiq 'RSA.*[Ss]ignature.*key ID c87f5b1a: OK' "$report"
- if grep -Eiq 'NOKEY|NOT OK|BAD|NOTTRUSTED' "$report"; then exit 1; fi
+ if ! rpm --checksig --verbose "$package" > "$report" 2>&1; then cat "$report"; echo "Signature command failed: $package" >&2; exit 1; fi
+ if ! grep -Eiq 'RSA.*[Ss]ignature.*key ID c87f5b1a: OK' "$report"; then cat "$report"; echo "Expected AWS RSA key missing: $package" >&2; exit 1; fi
+ if grep -Eiq 'NOKEY|NOT OK|BAD|NOTTRUSTED' "$report"; then cat "$report"; exit 1; fi
 }
 for file in /out/vendor/main/*.rpm; do verify_signature "$file" "/out/qa/$(basename "$file").signature.txt"; done
 python3 - "$series" <<'PY' > /tmp/vendor-pecl-requests
