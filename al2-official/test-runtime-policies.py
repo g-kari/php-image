@@ -150,3 +150,22 @@ for port in ("0","65536","999999"):
 if normalizers["normalize_diff"](sample.replace("<PORT>","43210"),"8.1","unrelated.diff")==sample:
     raise RuntimeError("Port normalization escaped the exact historical SNI test scope")
 print("STRICT_SERIES_PHPT_NORMALIZATION_UNIT_PASSED")
+
+# Upstream omits only the zero-XFAIL summary row; missing regular rows still fail.
+ref=functions("al2-official/vendor-phpt-reference.py",["number"],{"re":re,"log":"Tests failed : 2\n"})
+if ref["number"]("Expected fail")!=0:raise RuntimeError("Omitted zero XFAIL row was not retained")
+reject(lambda:ref["number"]("Tests passed"))
+ref["log"]="Expected fail : 0\nExpected fail : 0\n"
+reject(lambda:ref["number"]("Expected fail"))
+ref["log"]="XFAIL unexpected test\n"
+reject(lambda:ref["number"]("Expected fail"))
+ref["log"]="EXPECTED FAILED TEST SUMMARY\n"
+reject(lambda:ref["number"]("Expected fail"))
+ref["log"]="Expected fail : 1\n"
+if ref["number"]("Expected fail")!=1:raise RuntimeError("Nonzero XFAIL value lost")
+completion=functions("al2-official/phpt-policy.py",["reference_inventory_error"],{})
+required={"ext/date/tests/bug80963.phpt","ext/openssl/tests/openssl_error_string_basic.phpt"}
+for matched in (set(),{"ext/date/tests/bug80963.phpt"},required|{"unrelated.phpt"}):
+    if completion["reference_inventory_error"](matched) is None:raise RuntimeError("Incomplete vendor reference silently passed")
+if completion["reference_inventory_error"](required) is not None:raise RuntimeError("Complete reference rejected")
+print("STRICT_VENDOR_REFERENCE_INVENTORY_AND_SUMMARY_UNIT_PASSED")

@@ -49,6 +49,10 @@ def abnormal_actual_hunks(diff):
         elif re.fullmatch(r"Termsig=-?[0-9]+",actual):
             records.append({"kind":"signal","actual":actual})
     return records
+def reference_inventory_error(matched):
+    required={"ext/date/tests/bug80963.phpt","ext/openssl/tests/openssl_error_string_basic.phpt"}
+    if set(matched)==required:return None
+    return {"required":sorted(required),"matched":sorted(matched)}
 results=[];expected=[];unclassified=[];warning_error=None;matched_reference_tests=set()
 with tarfile.open("/out/prepared-source.tar.gz","r:gz") as source:
     members={(m.name[2:] if m.name.startswith("./") else m.name):m for m in source.getmembers()}
@@ -120,10 +124,8 @@ if actual_failures!=expected_failures or len(results)!=statistics["Tests failed"
       "unexpected_tests":sorted(actual_failures-expected_failures),"statistics":statistics,
       "classified_failures":len(results),"classified_warnings":len(warnings)}
     print("PHPT_FAILURE_INVENTORY_BLOCKED "+json.dumps(inventory_error,sort_keys=True),flush=True)
-reference_expected={"ext/date/tests/bug80963.phpt","ext/openssl/tests/openssl_error_string_basic.phpt"}
-reference_error=None
-if reference is not None and matched_reference_tests!=reference_expected:
-    reference_error={"required":sorted(reference_expected),"matched":sorted(matched_reference_tests)}
+reference_error=reference_inventory_error(matched_reference_tests) if reference is not None else None
+if reference_error:
     print("PHPT_VENDOR_REFERENCE_INCOMPLETE "+json.dumps(reference_error,sort_keys=True),flush=True)
 if unclassified or warning_error or inventory_error or reference_error:
     blocked={"series":series,"statistics":statistics,"status":"blocked","all_tests_passed":False,
