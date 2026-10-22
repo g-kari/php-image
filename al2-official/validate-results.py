@@ -7,12 +7,27 @@ if not __debug__:raise RuntimeError("Optimized verification forbidden")
 def ensure(ok,why):
     if not ok:raise RuntimeError(why)
 def read(phase,name):return json.loads((root/phase/name).read_text())
+def differences(old,new,path=""):
+    if old==new:return []
+    if isinstance(old,dict) and isinstance(new,dict):
+        result=[]
+        for key in sorted(set(old)|set(new)):
+            result+=differences(old.get(key,"<ABSENT>"),new.get(key,"<ABSENT>"),path+"/"+key)
+            if len(result)>200:break
+        return result
+    if isinstance(old,list) and isinstance(new,list) and path.split("/")[-1] in ("modules","internal_function_names","resource_constant_names"):
+        return [{"path":path,"removed":sorted(set(old)-set(new)),"added":sorted(set(new)-set(old))}]
+    return [{"path":path,"before":old,"after":new}]
+def equal_features(old,new,label):
+    if old!=new:
+        print("FEATURE_DIFFERENCES "+json.dumps({"context":label,"differences":differences(old,new)[:200]},sort_keys=True),flush=True)
+        raise RuntimeError("SAPI/module/features differ: "+label)
 phases=("vendor","patched","rollback")
 for tool in ("php","zts-php","phpdbg","zts-phpdbg","php-cgi","embedded","apache-normal","apache-named-zts"):
     data={phase:read(phase,tool+".json") for phase in phases}
     reference=data["vendor"]
     for phase in phases[1:]:
-        ensure(data[phase]==reference,"SAPI/module/features differ: "+phase+" "+tool)
+        equal_features(reference,data[phase],phase+" "+tool)
     for file in ("abi-php-config.txt","abi-zts-php-config.txt","api-php-config.txt","api-zts-php-config.txt"):
         for phase in phases[1:]:
             ensure((root/"vendor"/file).read_bytes()==(root/phase/file).read_bytes(),"Header API/layout changed: "+file)
@@ -20,7 +35,7 @@ for phase in phases:
     data=read(phase,"fpm.json")
     ensure(data["fpm_runtime"]=="passed","FPM phase failed")
     if phase!="vendor":
-        ensure(data["features"]==read("vendor","fpm.json")["features"],"FPM feature inventory changed")
+        equal_features(read("vendor","fpm.json")["features"],data["features"],phase+" FPM")
     ensure((root/"vendor"/"core-dependencies.txt").read_bytes()==(root/phase/"core-dependencies.txt").read_bytes(),"System TLS/glibc/tzdata changed")
 vendor=read("vendor","native.json");patched=read("patched","native.json");rollback=read("rollback","native.json")
 ensure(set(vendor)==set(patched)==set(rollback),"Native payload path changed")
@@ -28,8 +43,8 @@ changes=[]
 for path,old in vendor.items():
     new=patched[path]
     ensure(old==rollback[path],"Rollback native bytes/metadata differ: "+path)
-    ensure(old["dynamic_links"]==new["dynamic_links"],"Native library dependency changed: "+path)
-    ensure(old["version_requirements"]==new["version_requirements"],"ELF symbol-version requirement changed: "+path)
+    ensure(old["dynamic_links"]==new["dynamic_links"],"Native library dependency changed: "+path+" "+json.dumps([old["dynamic_links"],new["dynamic_links"]]))
+    ensure(old["version_requirements"]==new["version_requirements"],"ELF symbol-version requirement changed: "+path+" "+json.dumps([old["version_requirements"],new["version_requirements"]]))
     before,after=old["exports"],new["exports"]
     ensure(not (set(before)-set(after)),"Public native symbol removed: "+path)
     core=(path.startswith(("/usr/bin/","/usr/sbin/","/usr/lib64/libphp","/usr/lib64/httpd/modules/libphp")))

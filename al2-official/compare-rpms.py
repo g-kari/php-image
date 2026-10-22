@@ -68,5 +68,7 @@ result={"schema":1,"series":series,"status":"passed" if not differences else "bl
           "Compiler/dependency snapshot, build metadata and signatures differ from AWS.",
           "Separate runtime/ELF/upgrade/rollback gates are required."]}
 Path(report).write_text(json.dumps(result,indent=2,sort_keys=True))
-if differences:raise RuntimeError("Unreviewed metadata/configuration differences; inspect "+report)
+if differences:
+    print("UNAPPROVED_RPM_DIFFERENCES "+json.dumps(differences[:50],sort_keys=True),flush=True)
+    raise RuntimeError("Unreviewed metadata/configuration differences; inspect "+report)
 print("OFFICIAL_RPM_METADATA_COMPARISON_PASSED packages="+str(len(main)))
