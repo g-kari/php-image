@@ -60,7 +60,17 @@ if series=="7.4":
       "symbols":[line for line in command(["readelf","--dyn-syms","--wide",str(module)])["output"].splitlines() if "_apc_register_serializer" in line],
       "program_headers":command(["readelf","--program-headers","--wide",str(module)])["output"]})
 emit("original-php-build-metadata",command(["rpm","-q","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}|%{BUILDTIME}\n","php-common","php-cli"]))
-emit("actual-runtime-dependencies",command(["rpm","-q","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}\n","glibc","openssl-libs","libcurl","curl","postgresql-libs","libcurl-devel","postgresql-devel"],allowed=(0,1)))
+emit("actual-runtime-dependencies",command(["rpm","-q","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}\n","glibc","openssl-libs","libcurl","curl","postgresql-libs"]))
+def validate_optional_rpm(name,record):
+    if name not in ("libcurl-devel","postgresql-devel"):raise RuntimeError("Unknown optional SDK query")
+    if record["returncode"]==1 and record["output"]=="package "+name+" is not installed\n":return
+    pattern=re.escape(name)+r"\|[0-9]+\|[A-Za-z0-9_.+~:-]+\|[A-Za-z0-9_.+~:-]+\|x86_64\n"
+    if record["returncode"]!=0 or re.fullmatch(pattern,record["output"]) is None:
+        raise RuntimeError("Unexpected optional SDK RPM query result")
+for name in ("libcurl-devel","postgresql-devel"):
+    record=command(["rpm","-q","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}\n",name],allowed=(0,1))
+    validate_optional_rpm(name,record)
+    emit("optional-runtime-"+name,record)
 def package_inventory():
     return sorted(command(["rpm","-qa","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}\n"])["output"].splitlines())
 def php_native_inventory():
