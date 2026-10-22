@@ -28,8 +28,9 @@ for label,suffix in (("normal",""),("named-zts","-zts")):
     library=modules/(basename+suffix+".so")
     if not library.is_file():raise RuntimeError("Packaged Apache SAPI missing")
     root=Path("/tmp")/("ci-httpd-"+phase+"-"+label);root.mkdir()
+    runtime=root/"run";runtime.mkdir()
     config=root/"httpd.conf"
-    text='ServerRoot "'+str(root)+'"\nServerName localhost\nListen 127.0.0.1:19444\n'
+    text='ServerRoot "'+str(root)+'"\nDefaultRuntimeDir "'+str(runtime)+'"\nServerName localhost\nListen 127.0.0.1:19444\n'
     for name,file in (("mpm_prefork_module","mod_mpm_prefork.so"),("unixd_module","mod_unixd.so"),("authz_core_module","mod_authz_core.so")):
         path=modules/file
         if not path.is_file():raise RuntimeError("Expected official Apache module missing: "+file)
