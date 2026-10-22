@@ -18,6 +18,7 @@ for series,mapping in data["series"].items():
 print("QA_HARNESS_SYNTAX_AND_ORACLE_INVENTORY_PASSED")
 '
 python3 al2-official/test-signature-policy.py
+python3 al2-official/cgi-response.py --selftest
 for file in al2-official/*.sh; do bash -n "$file"; done
 test ! -e out
 mkdir out

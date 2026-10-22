@@ -52,9 +52,11 @@ for binary in php zts-php phpdbg zts-phpdbg; do
  fi
  check_probe
 done
-last_probe="SAPI php-cgi"; last_output="$dir/php-cgi.json"
+last_probe="SAPI php-cgi"; last_output="$dir/php-cgi-response.bin"
 REDIRECT_STATUS=1 REQUEST_METHOD=GET SCRIPT_FILENAME=/work/al2-official/probe-entry.php \
- QUERY_STRING="series=$series" timeout 20 php-cgi -q > "$dir/php-cgi.json"
+ QUERY_STRING="series=$series" timeout 20 php-cgi > "$dir/php-cgi-response.bin"
+python3 /work/al2-official/cgi-response.py "$dir/php-cgi-response.bin" "$dir/php-cgi.json" "$dir/php-cgi-headers.json"
+last_output="$dir/php-cgi.json"
 check_probe
 for config in php-config zts-php-config; do
  last_probe="Header ABI $config"; last_output="$dir/abi-$config.txt"

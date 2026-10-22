@@ -27,7 +27,14 @@ function test_vendor_pecl($series) {
             if (apcu_enabled() && (!$ok || $got !== $value)) { throw new RuntimeException('APCu roundtrip'); }
         }
         $redis = new Redis;
-        if (!$redis->setOption(Redis::OPT_SERIALIZER,Redis::SERIALIZER_IGBINARY)) { throw new RuntimeException('Redis igbinary registration'); }
+        // phpredis 5.2.1 setOption/_serialize require a connected RedisSock.
+        // This bounded local fixture makes no server connection; test registration only.
+        foreach (['OPT_SERIALIZER','SERIALIZER_IGBINARY'] as $name) {
+            if (!defined('Redis::'.$name)) { throw new RuntimeException('Redis serializer constant registration'); }
+        }
+        foreach (['setOption','_serialize','_unserialize'] as $name) {
+            if (!method_exists($redis,$name)) { throw new RuntimeException('Redis serializer method registration'); }
+        }
         $memcached = new Memcached;
         if (!$memcached->setOption(Memcached::OPT_SERIALIZER,Memcached::SERIALIZER_IGBINARY)) { throw new RuntimeException('Memcached igbinary registration'); }
         if (!$memcached->setOption(Memcached::OPT_SERIALIZER,Memcached::SERIALIZER_MSGPACK)) { throw new RuntimeException('Memcached msgpack registration'); }
@@ -49,5 +56,5 @@ function test_vendor_pecl($series) {
         $image->clear(); $image->destroy();
     }
     return ['series'=>$series,'official_pecl_modules'=>$required,'vendor_extension_directory'=>$directory,'vendor_not_provided_in_this_directory'=>array_values(array_diff($all,$required)),'apcu_runtime_enabled'=>function_exists('apcu_enabled')?apcu_enabled():null,'bounded_local_checks'=>'passed',
-        'limits'=>['no Redis/Memcached/SSH server interoperability test','not an assertion every extension-specific vulnerability is covered']];
+        'limits'=>['Redis constructor/constants/method registration only; no Redis serializer operation without a server','no Redis/Memcached/SSH server interoperability test','not an assertion every extension-specific vulnerability is covered']];
 }
