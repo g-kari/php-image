@@ -50,6 +50,7 @@ run_phase() {
 }
 # Cheap baseline/fixture validation precedes the 20-30 minute compiler job.
 run_phase baseline
+docker exec "$cid" python3 /work/al2-official/check-feature-evidence.py /out/qa/vendor
 if [[ "$mode" = preflight ]]; then
  docker stop "$cid" >/dev/null
  docker logs "$cid" > out/runtime-container.log 2>&1
