@@ -27,6 +27,14 @@ on_exit() {
  exit "$rc"
 }
 trap on_exit EXIT
+check_probe() {
+ python3 -c 'import json,sys
+p=json.load(open(sys.argv[1]))
+if not isinstance(p,dict) or p.get("features",{}).get("local_features")!="passed" or p.get("pecl",{}).get("bounded_local_checks")!="passed":
+ raise RuntimeError("SAPI did not return the expected completed feature result")
+' "$last_output"
+ echo "SAPI_PROBE_PASSED phase=$phase stage=$last_probe"
+}
 for file in /work/al2-official/*.php; do php -l "$file"; done
 php --ini > "$dir/php-ini-paths.txt"
 php-config --configure-options > "$dir/configure-options.txt"
@@ -42,10 +50,12 @@ for binary in php zts-php phpdbg zts-phpdbg; do
  else
   timeout 20 "$binary" -d apc.enable_cli=1 /work/al2-official/probe-entry.php "$series" > "$dir/$binary.json"
  fi
+ check_probe
 done
 last_probe="SAPI php-cgi"; last_output="$dir/php-cgi.json"
 REDIRECT_STATUS=1 REQUEST_METHOD=GET SCRIPT_FILENAME=/work/al2-official/probe-entry.php \
  QUERY_STRING="series=$series" timeout 20 php-cgi -q > "$dir/php-cgi.json"
+check_probe
 for config in php-config zts-php-config; do
  last_probe="Header ABI $config"; last_output="$dir/abi-$config.txt"
  binary="${config%-config}"

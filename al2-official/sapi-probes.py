@@ -8,13 +8,18 @@ def command(args,**kw):
     except subprocess.CalledProcessError as error:
         print("SAPI_COMMAND_FAILED "+repr(args)+"\n"+error.output.decode(errors="replace")[-8000:],flush=True)
         raise
+def parse_response(data,label):
+    try:return json.loads(data)
+    except ValueError:
+        print("SAPI_NON_JSON_RESPONSE "+label+"\n"+data.decode(errors="replace")[-8000:],flush=True)
+        raise
 includes=shlex.split(command(["php-config","--includes"]).decode())
 libraries=[p for p in command(["rpm","-ql","php-embedded"]).decode().splitlines()
            if p in ("/usr/lib64/libphp7.so","/usr/lib64/libphp.so")]
 if len(libraries)!=1:raise RuntimeError("Unrecognized embedded library")
 command(["gcc",*includes,"/work/al2-official/embed-probe.c",libraries[0],"-o","/tmp/php-embed-ci"])
 data=command(["timeout","20","/tmp/php-embed-ci",series])
-json.loads(data);(out/"embedded.json").write_bytes(data)
+parse_response(data,"embedded");(out/"embedded.json").write_bytes(data)
 modules=Path("/usr/lib64/httpd/modules")
 basename="libphp7" if series=="7.4" else "libphp"
 identifier="php7_module" if series=="7.4" else "php_module"
@@ -48,7 +53,7 @@ for label,suffix in (("normal",""),("named-zts","-zts")):
                 break
             except OSError:time.sleep(0.1)
         if response is None:raise RuntimeError("Private Apache readiness failed")
-        payload=json.loads(response)
+        payload=parse_response(response,"apache-"+label)
         if payload["features"]["sapi"]!="apache2handler":raise RuntimeError("Wrong Apache handler")
         (out/("apache-"+label+".json")).write_bytes(response)
     finally:
