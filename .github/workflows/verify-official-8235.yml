@@ -1,0 +1,76 @@
+name: Verify newly arrived official AL2 PHP8.2.35
+on:
+  push:
+    branches: [verify-official-al2-8235]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Verify official RPMs and full security source without installing PHP
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm -i --platform linux/amd64 --memory 2g --cpus 2 --pids-limit 256 \
+            'docker.io/library/amazonlinux:2@sha256:f86b99704b49b2fde6bf42b4c5257fcb0b1e0946509da5d6cea08c4227618433' bash -s <<'SH' | tee official8235.txt
+          set -euo pipefail
+          yum install -y amazon-linux-extras yum-utils rpm-build cpio git patch python3
+          amazon-linux-extras enable php8.2
+          yum repolist all
+          mkdir -p /tmp/binary /tmp/source
+          repoquery --disablerepo='*' --enablerepo=amzn2extra-php8.2 --archlist=x86_64,noarch --qf '%{name}|%{version}|%{release}|%{sourcerpm}' 'php*' | sort -u > /tmp/metadata
+          echo OFFICIAL_8235_METADATA_BEGIN
+          cat /tmp/metadata
+          echo OFFICIAL_8235_METADATA_END
+          awk -F'|' '$2=="8.2.35" && $3=="1.amzn2.0.1" && $4=="php-8.2.35-1.amzn2.0.1.src.rpm" {print $1"-"$2"-"$3}' /tmp/metadata > /tmp/names
+          test "$(wc -l < /tmp/names)" -eq 26
+          mapfile -t names < /tmp/names
+          yumdownloader --disablerepo='*' --enablerepo=amzn2extra-php8.2 --destdir=/tmp/binary "${names[@]}"
+          yumdownloader --source --disablerepo='*' --enablerepo=amzn2extra-php8.2 --enablerepo=amzn2extra-php8.2-source --destdir=/tmp/source php-8.2.35-1.amzn2.0.1
+          test "$(find /tmp/binary -type f -name '*.rpm' | wc -l)" -eq 26
+          srpm=/tmp/source/php-8.2.35-1.amzn2.0.1.src.rpm
+          test -f "$srpm"
+          for rpmfile in /tmp/binary/*.rpm "$srpm"; do
+            signature="$(rpm --checksig --verbose "$rpmfile")"
+            printf '%s\n' "$signature"
+            grep -Eq '(RSA|DSA).*[Ss]ignature.*key ID c87f5b1a: OK' <<< "$signature"
+            if grep -Eiq 'NOKEY|NOT OK|BAD|NOTTRUSTED' <<< "$signature"; then exit 1; fi
+            sha256sum "$rpmfile"
+          done
+          echo OFFICIAL_8235_CHANGELOG_BEGIN
+          rpm -qp --changelog "$srpm" | head -100
+          echo OFFICIAL_8235_CHANGELOG_END
+          useradd -m builder
+          install -d -o builder -g builder /home/builder/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+          cd /home/builder/rpmbuild/SOURCES
+          rpm2cpio "$srpm" | cpio -idm --no-absolute-filenames
+          echo OFFICIAL_8235_SPEC_BEGIN
+          cat php.spec
+          echo OFFICIAL_8235_SPEC_END
+          test -f php-8.2.35.tar.xz
+          printf '%s  %s\n' 5737b98601fe5ab1b8c5db0c82ed3158acb9283ed3081ffe2faffb9ac81455e6 php-8.2.35.tar.xz | sha256sum -c -
+          mv php.spec ../SPECS/php.spec
+          git init -q /tmp/php-official
+          git -C /tmp/php-official remote add origin https://github.com/php/php-src.git
+          commit=01a40e89fbfc499936e3b05888d8f00bfde886df
+          parent=512c04e39f674dbf4133b8fbbd381cd8c2df6836
+          git -C /tmp/php-official fetch --depth=2 --no-tags origin "$commit"
+          test "$(git -C /tmp/php-official rev-parse FETCH_HEAD)" = "$commit"
+          test "$(git -C /tmp/php-official rev-parse "$commit^")" = "$parent"
+          # Vendor prep intentionally removes some upstream tests. Compare every production hunk instead.
+          git -C /tmp/php-official diff --binary --full-index "$parent" "$commit" -- . ':(exclude)**/tests/**' ':(exclude)**/*.phpt' > /tmp/cve-production.patch
+          git -C /tmp/php-official diff --name-only "$parent" "$commit" -- . ':(exclude)**/tests/**' ':(exclude)**/*.phpt' > /tmp/cve-production-files
+          test -s /tmp/cve-production.patch
+          sha256sum /tmp/cve-production.patch
+          echo OFFICIAL_8235_CVE_PRODUCTION_FILES_BEGIN
+          cat /tmp/cve-production-files
+          echo OFFICIAL_8235_CVE_PRODUCTION_FILES_END
+          chown -R builder:builder /home/builder/rpmbuild
+          su - builder -c 'rpmbuild -bp --nodeps rpmbuild/SPECS/php.spec'
+          cd /home/builder/rpmbuild/BUILD/php-8.2.35
+          patch --dry-run --reverse --batch --fuzz=0 -p1 < /tmp/cve-production.patch
+          echo "OFFICIAL_8235_SOURCE_CVE_VERIFICATION_PASSED production_files=$(wc -l < /tmp/cve-production-files) binary_rpms=26"
+          SH
+          grep -q '^OFFICIAL_8235_SOURCE_CVE_VERIFICATION_PASSED ' official8235.txt
