@@ -52,6 +52,22 @@ done
 yum install -y /out/vendor/main/*.rpm
 if compgen -G '/out/vendor/pecl/*.rpm' > /dev/null; then yum install -y /out/vendor/pecl/*.rpm; fi
 yum install -y php-pear
+python3 - "$series" <<'PY'
+import json,subprocess,sys
+from pathlib import Path
+items=json.load(open("/work/al2-official/packages.json"))["pecl"][sys.argv[1]]
+coverage={"/usr/lib64/php/modules":[],"/usr/lib64/php-zts/modules":[]};files={}
+for item in items:
+    paths=subprocess.check_output(["rpm","-ql",item["name"]]).decode().splitlines()
+    files[item["name"]]=paths
+    for directory in coverage:
+        if directory+"/"+item["extension"]+".so" in paths:coverage[directory].append(item["extension"])
+    if "/usr/lib64/php/modules/"+item["extension"]+".so" not in paths:raise RuntimeError("Vendor NTS PECL payload missing")
+for values in coverage.values():values.sort()
+Path("/out/qa/vendor-pecl-coverage.json").write_text(json.dumps(coverage,indent=2,sort_keys=True))
+Path("/out/qa/vendor-pecl-files.json").write_text(json.dumps(files,indent=2,sort_keys=True))
+print("ACTUAL_VENDOR_PECL_MODULE_DIRECTORIES "+json.dumps(coverage,sort_keys=True))
+PY
 rpm -qa | sort > /out/qa/vendor-environment-rpms.txt
 find /out/vendor -type f -name '*.rpm' -print0 | sort -z | xargs -0 sha256sum > /out/qa/vendor-rpm-sha256.txt
 echo "OFFICIAL_VENDOR_COHORT_INSTALLED series=$series"

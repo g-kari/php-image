@@ -1,13 +1,22 @@
 <?php
 /* Local, bounded PECL compatibility checks. No service connections or credentials. */
 function test_vendor_pecl($series) {
-    $required = $series === '7.4' ? ['apcu','igbinary','imagick','mailparse','memcache','memcached','msgpack','oauth','redis','ssh2','uuid'] : ($series === '8.0' ? ['imagick'] : []);
+    $all = $series === '7.4' ? ['apcu','igbinary','imagick','mailparse','memcache','memcached','msgpack','oauth','redis','ssh2','uuid'] : ($series === '8.0' ? ['imagick'] : []);
+    $coverage=json_decode(file_get_contents('/out/qa/vendor-pecl-coverage.json'),true);
+    $directory=ini_get('extension_dir');
+    if (!isset($coverage[$directory])) { throw new RuntimeException('Unknown vendor extension directory'); }
+    $required=$coverage[$directory];
+    $sortedAll=$all;sort($sortedAll);
+    if ($required && $required!==$sortedAll) { throw new RuntimeException('Unclassified partial vendor PECL SAPI coverage'); }
+    foreach ($all as $extension) {
+        if (extension_loaded($extension)!==in_array($extension,$required,true)) { throw new RuntimeException('Vendor PECL payload/INI profile mismatch '.$extension); }
+    }
     foreach ($required as $extension) {
         if (!extension_loaded($extension)) { throw new RuntimeException('Missing official PECL '.$extension); }
     }
     $sample = [[],['one'=>'value'],[0=>'zero','n'=>123,'nested'=>['unicode'=>'日本語']]];
     $sample[] = ['get'=>$_GET,'post'=>$_POST,'cookie'=>$_COOKIE];
-    if ($series === '7.4') {
+    if ($series === '7.4' && $required) {
         foreach ($sample as $value) {
             if (igbinary_unserialize(igbinary_serialize($value)) !== $value) { throw new RuntimeException('igbinary roundtrip'); }
             if (msgpack_unpack(msgpack_pack($value)) !== $value) { throw new RuntimeException('msgpack roundtrip'); }
@@ -39,6 +48,6 @@ function test_vendor_pecl($series) {
         if (strlen($blob)<8 || substr($blob,0,8)!=="\x89PNG\r\n\x1a\n") { throw new RuntimeException('Imagick PNG'); }
         $image->clear(); $image->destroy();
     }
-    return ['series'=>$series,'official_pecl_modules'=>$required,'apcu_runtime_enabled'=>function_exists('apcu_enabled')?apcu_enabled():null,'bounded_local_checks'=>'passed',
+    return ['series'=>$series,'official_pecl_modules'=>$required,'vendor_extension_directory'=>$directory,'vendor_not_provided_in_this_directory'=>array_values(array_diff($all,$required)),'apcu_runtime_enabled'=>function_exists('apcu_enabled')?apcu_enabled():null,'bounded_local_checks'=>'passed',
         'limits'=>['no Redis/Memcached/SSH server interoperability test','not an assertion every extension-specific vulnerability is covered']];
 }

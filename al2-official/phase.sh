@@ -23,6 +23,8 @@ pear version > "$dir/pear-version.txt"
 pecl version > "$dir/pecl-version.txt"
 for binary in php zts-php phpdbg zts-phpdbg; do
  command -v "$binary" >/dev/null
+ echo "SAPI_PROBE_BEGIN phase=$phase binary=$binary"
+ "$binary" --ini > "$dir/$binary-ini-paths.txt" 2>&1
  if [[ "$binary" = *phpdbg ]]; then
   timeout 20 "$binary" -d apc.enable_cli=1 -qrr /work/al2-official/probe-entry.php "$series" > "$dir/$binary.json"
  else
