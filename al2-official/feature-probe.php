@@ -107,7 +107,7 @@ function al2_feature_probe($series, $sapi) {
     }
     ksort($classes);
     return ['series'=>$series,'sapi'=>PHP_SAPI,'version'=>PHP_VERSION,'zts'=>(bool)PHP_ZTS,
-      'modules'=>$loaded,'internal_function_names'=>$functions,'internal_class_api'=>$classes,'defined_constants'=>$constants,'resource_constant_names'=>$resourceConstants,'gd'=>$gd,'dba_handlers'=>$handlers,'pdo_drivers'=>$drivers,
+      'modules'=>$loaded,'ini_loaded_file'=>php_ini_loaded_file(),'ini_scanned_files'=>php_ini_scanned_files(),'internal_function_names'=>$functions,'internal_class_api'=>$classes,'defined_constants'=>$constants,'resource_constant_names'=>$resourceConstants,'gd'=>$gd,'dba_handlers'=>$handlers,'pdo_drivers'=>$drivers,
       'timezone_database'=>timezone_version_get(),'local_features'=>'passed',
       'limits'=>['Local APIs/roundtrips only, not database/LDAP/SNMP/FTP service interoperability.',
       'Named zts binary is recorded by actual PHP_ZTS, not assumed thread-safe.']];
