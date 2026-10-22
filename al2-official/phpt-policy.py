@@ -49,7 +49,7 @@ def abnormal_actual_hunks(diff):
         elif re.fullmatch(r"Termsig=-?[0-9]+",actual):
             records.append({"kind":"signal","actual":actual})
     return records
-results=[];expected=[];unclassified=[];warning_error=None
+results=[];expected=[];unclassified=[];warning_error=None;matched_reference_tests=set()
 with tarfile.open("/out/prepared-source.tar.gz","r:gz") as source:
     members={(m.name[2:] if m.name.startswith("./") else m.name):m for m in source.getmembers()}
     try:warnings=review_warnings(log,series,members,source)
@@ -99,6 +99,7 @@ with tarfile.open("/out/prepared-source.tar.gz","r:gz") as source:
                 unclassified.append(record);continue
             record["classification"]="Exact unchanged-source PHPT failure reproduced by the signed original vendor binary in the same environment before update; not relabeled PASS."
             record["vendor_reference_php_sha256"]=reference["php_sha256"]
+            matched_reference_tests.add(record["test"])
         elif where=="tests/lang/bug45392.diff":
             changes=re.findall(r"(?m)^\d+[+-]\s?(.*)$",diff)
             if changes!=[""]:raise RuntimeError("OOM output difference is not the single known newline")
@@ -111,23 +112,35 @@ with tarfile.open("/out/prepared-source.tar.gz","r:gz") as source:
             record["classification"]="Historical Tehran tzdata expectation corrected in tzdb2022b; unchanged vendor binary and exact tzdata NEVRA are separately compared."
         else:raise RuntimeError("Unclassified PHPT failure: "+where)
         results.append(record)
-if reference is not None and not unclassified and not warning_error:
-    reference["status"]="original_vendor_failure_diffs_match_patched_build"
-    (root/"qa/VENDOR-PHPT-REFERENCE.json").write_text(json.dumps(reference,indent=2,sort_keys=True))
-    print("ORIGINAL_VENDOR_PHPT_ENVIRONMENT_DIFFS_MATCH_PASSED series="+series,flush=True)
-if unclassified or warning_error:
+expected_failures={name.replace(".diff",".phpt") for name in allow}
+actual_failures={item["test"] for item in results}
+inventory_error=None
+if actual_failures!=expected_failures or len(results)!=statistics["Tests failed"] or len(warnings)!=statistics["Tests warned"] or statistics["Tests borked"]!=0:
+    inventory_error={"missing_reviewed_tests":sorted(expected_failures-actual_failures),
+      "unexpected_tests":sorted(actual_failures-expected_failures),"statistics":statistics,
+      "classified_failures":len(results),"classified_warnings":len(warnings)}
+    print("PHPT_FAILURE_INVENTORY_BLOCKED "+json.dumps(inventory_error,sort_keys=True),flush=True)
+reference_expected={"ext/date/tests/bug80963.phpt","ext/openssl/tests/openssl_error_string_basic.phpt"}
+reference_error=None
+if reference is not None and matched_reference_tests!=reference_expected:
+    reference_error={"required":sorted(reference_expected),"matched":sorted(matched_reference_tests)}
+    print("PHPT_VENDOR_REFERENCE_INCOMPLETE "+json.dumps(reference_error,sort_keys=True),flush=True)
+if unclassified or warning_error or inventory_error or reference_error:
     blocked={"series":series,"statistics":statistics,"status":"blocked","all_tests_passed":False,
       "classified_failures":results,"unclassified_failures":unclassified,"original_warnings":warnings,
-      "warning_classification_error":warning_error,"expected_fail_evidence":expected}
+      "warning_classification_error":warning_error,"failure_inventory_error":inventory_error,
+      "vendor_reference_error":reference_error,"expected_fail_evidence":expected}
     (root/"qa"/"PHPT-RESULTS.json").write_text(json.dumps(blocked,indent=2,sort_keys=True))
     print("PHPT_UNCLASSIFIED_TESTS "+json.dumps([item["test"] for item in unclassified]),flush=True)
     for item in unclassified[:100]:
         print("UNCLASSIFIED_EVIDENCE_META "+json.dumps({key:value for key,value in item.items() if key!="diff"},sort_keys=True),flush=True)
         print("UNCLASSIFIED_DIFF_BEGIN "+item["test"]+"\n"+item["diff"][:30000]+"\nUNCLASSIFIED_DIFF_END",flush=True)
     raise RuntimeError("Unclassified PHPT evidence blocks publication; all available failures were collected")
-if len(results)!=statistics["Tests failed"] or len(warnings)!=statistics["Tests warned"] or statistics["Tests borked"]!=0:
-    print("PHPT_INVENTORY_MISMATCH "+json.dumps({"statistics":statistics,"classified_failures":len(results),"classified_warnings":len(warnings)}),flush=True)
-    raise RuntimeError("PHPT failure inventory/count mismatch")
+if reference is not None:
+    reference["status"]="original_vendor_failure_diffs_match_patched_build"
+    reference["matched_tests"]=sorted(matched_reference_tests)
+    (root/"qa/VENDOR-PHPT-REFERENCE.json").write_text(json.dumps(reference,indent=2,sort_keys=True))
+    print("ORIGINAL_VENDOR_PHPT_ENVIRONMENT_DIFFS_MATCH_PASSED series="+series,flush=True)
 report={"series":series,"statistics":statistics,"original_failures":results,"original_warnings":warnings,"expected_fail_evidence":expected,
  "status":"no_unclassified_failure","timeout_policy":"Added actual timeout/Termsig sentinels block even for XFAIL; new ordinary FAIL diffs/counts also block. Original suite statuses and vendor SKIP/XFAIL remain separate.","all_tests_passed":False,
  "limitations":["The original vendor suite uses the without-shared Apache build CLI and has many SKIPs.",

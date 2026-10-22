@@ -54,6 +54,10 @@ result=subprocess.run(command,cwd=str(source),env=environment,stdout=subprocess.
 log=result.stdout.decode(errors="replace")
 def number(label):
     matches=re.findall(r"(?m)^"+re.escape(label)+r"\s*:\s*(\d+)",log)
+    if not matches and label=="Expected fail" and not re.search(r"\bXFAIL(?:ED)?\b|EXPECTED FAIL",log):
+        # Upstream prints this row only when XFAILED > 0. The two exact
+        # selected fixtures have no XFAIL sections; all other counts stay required.
+        return 0
     if len(matches)!=1:raise RuntimeError("Reference summary missing/ambiguous: "+label)
     return int(matches[0])
 stats={label:number(label) for label in ("Number of tests","Tests failed","Tests passed","Tests skipped","Tests warned","Expected fail")}
