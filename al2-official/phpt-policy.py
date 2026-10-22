@@ -34,10 +34,13 @@ def normalize(value):
     value=re.sub(r"/home/builder/rpmbuild/BUILD/php-[0-9.]+/","<SOURCE>/",value)
     value=re.sub(r"/tmp/php[A-Za-z0-9]{6}\b","/tmp/php<FIXTURE>",value)
     return value.rstrip()+"\n"
-results=[];expected=[]
+results=[];expected=[];unclassified=[];warning_error=None
 with tarfile.open("/out/prepared-source.tar.gz","r:gz") as source:
     members={(m.name[2:] if m.name.startswith("./") else m.name):m for m in source.getmembers()}
-    warnings=review_warnings(log,series,members,source)
+    try:warnings=review_warnings(log,series,members,source)
+    except RuntimeError as error:
+        warning_error=str(error);warnings=[]
+        print("PHPT_WARNING_CLASSIFICATION_BLOCKED "+warning_error,flush=True)
     for path in sorted((root/"build-evidence").rglob("*.diff")):
         rel=path.relative_to(root/"build-evidence")
         candidate=str(rel.with_suffix(".phpt"))
@@ -51,8 +54,8 @@ with tarfile.open("/out/prepared-source.tar.gz","r:gz") as source:
             record["actual_status"]="XFAIL";expected.append(record);continue
         name=path.stem;where="/".join(rel.parts[1:])
         if where not in allow or normalize(diff)!=allow[where]:
-            print("UNCLASSIFIED_DIFF_BEGIN "+where+"\n"+diff+"\nUNCLASSIFIED_DIFF_END",flush=True)
-            raise RuntimeError("Known PHPT diff changed beyond the exact reviewed oracle: "+where)
+            unclassified.append(record)
+            continue
         if where.startswith("ext/session/tests/") and name in session:
             if not ("NULL" in diff or ("session id is too long" in diff and name=="rfc1867_sid_invalid")):
                 raise RuntimeError("Unclassified upload-progress diff")
@@ -69,6 +72,15 @@ with tarfile.open("/out/prepared-source.tar.gz","r:gz") as source:
             record["classification"]="Historical Tehran tzdata expectation corrected in tzdb2022b; unchanged vendor binary and exact tzdata NEVRA are separately compared."
         else:raise RuntimeError("Unclassified PHPT failure: "+where)
         results.append(record)
+if unclassified or warning_error:
+    blocked={"series":series,"statistics":statistics,"status":"blocked","all_tests_passed":False,
+      "classified_failures":results,"unclassified_failures":unclassified,"original_warnings":warnings,
+      "warning_classification_error":warning_error,"expected_fail_evidence":expected}
+    (root/"qa"/"PHPT-RESULTS.json").write_text(json.dumps(blocked,indent=2,sort_keys=True))
+    print("PHPT_UNCLASSIFIED_TESTS "+json.dumps([item["test"] for item in unclassified]),flush=True)
+    for item in unclassified[:100]:
+        print("UNCLASSIFIED_DIFF_BEGIN "+item["test"]+"\n"+item["diff"][:30000]+"\nUNCLASSIFIED_DIFF_END",flush=True)
+    raise RuntimeError("Unclassified PHPT evidence blocks publication; all available failures were collected")
 if len(results)!=statistics["Tests failed"] or len(warnings)!=statistics["Tests warned"] or statistics["Tests borked"]!=0:
     print("PHPT_INVENTORY_MISMATCH "+json.dumps({"statistics":statistics,"classified_failures":len(results),"classified_warnings":len(warnings)}),flush=True)
     raise RuntimeError("PHPT failure inventory/count mismatch")
