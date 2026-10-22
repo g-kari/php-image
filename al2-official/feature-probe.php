@@ -79,8 +79,17 @@ function al2_feature_probe($series, $sapi) {
         foreach (glob($dir.'/*') as $file) { unlink($file); }rmdir($dir);
     }
     sort($loaded);
+    $functions=get_defined_functions()['internal'];sort($functions);
+    $constants=[];$resourceConstants=[];
+    foreach (get_defined_constants() as $name=>$value) {
+        if (is_resource($value)) { $resourceConstants[]=$name;continue; }
+        $type=gettype($value);
+        if (is_float($value) && (is_infinite($value) || is_nan($value))) { $value=(string)$value; }
+        $constants[$name]=['type'=>$type,'value'=>$value];
+    }
+    ksort($constants);sort($resourceConstants);
     return ['series'=>$series,'sapi'=>PHP_SAPI,'version'=>PHP_VERSION,'zts'=>(bool)PHP_ZTS,
-      'modules'=>$loaded,'gd'=>$gd,'dba_handlers'=>$handlers,'pdo_drivers'=>$drivers,
+      'modules'=>$loaded,'internal_function_names'=>$functions,'defined_constants'=>$constants,'resource_constant_names'=>$resourceConstants,'gd'=>$gd,'dba_handlers'=>$handlers,'pdo_drivers'=>$drivers,
       'timezone_database'=>timezone_version_get(),'local_features'=>'passed',
       'limits'=>['Local APIs/roundtrips only, not database/LDAP/SNMP/FTP service interoperability.',
       'Named zts binary is recorded by actual PHP_ZTS, not assumed thread-safe.']];
