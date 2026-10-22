@@ -130,3 +130,23 @@ for text in [
 for source,status in [("--XFAIL--\nKnown upstream bug\n","XFAIL"),("--XFAIL_EXTERNAL--\nreason.txt\n","XFAIL"),("--EXPECT--\nfixture\n","FAIL")]:
     if ns["retained_diff_status"](source)!=status:raise RuntimeError("Original upstream status relabeled")
 print("STRICT_PHPT_XFAIL_ABNORMAL_POLICY_UNIT_PASSED")
+
+normalizers=functions("al2-official/phpt_support.py",["normalize_diff"],{"re":re})
+oracles=json.loads(Path("al2-official/known-phpt-diffs.json").read_text())["series"]
+versions={"7.4":"7.4.33","8.0":"8.0.30","8.1":"8.1.34"}
+for series,mapping in oracles.items():
+    for test,expected in mapping.items():
+        for prefix in ("/home/builder/rpmbuild/BUILD/","/tmp/php-vendor-phpt-reference/"):
+            raw=expected.replace("<SOURCE>/",prefix+"php-"+versions[series]+"/").replace("/tmp/php<FIXTURE>","/tmp/phpAb1Zx9")
+            raw=raw.replace("<PORT>","43210")
+            if normalizers["normalize_diff"](raw,series,test)!=expected:
+                raise RuntimeError("Exact oracle normalization changed: "+series+" "+test)
+test="ext/openssl/tests/sni_server.diff";sample=oracles["8.1"][test]
+for port in ("1","65535"):
+    if normalizers["normalize_diff"](sample.replace("<PORT>",port),"8.1",test)!=sample:
+        raise RuntimeError("Valid ephemeral port normalization changed")
+for port in ("0","65536","999999"):
+    reject(lambda:normalizers["normalize_diff"](sample.replace("<PORT>",port),"8.1",test))
+if normalizers["normalize_diff"](sample.replace("<PORT>","43210"),"8.1","unrelated.diff")==sample:
+    raise RuntimeError("Port normalization escaped the exact historical SNI test scope")
+print("STRICT_SERIES_PHPT_NORMALIZATION_UNIT_PASSED")

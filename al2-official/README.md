@@ -27,3 +27,10 @@ Unlike the old separate-prefix RPMs, these packages can replace system PHP and a
 Only a normal reviewed main merge enables the trusted-main job. PR jobs are read-only. The main job rebuilds, runs every gate, and publishes those exact tested bytes via a draft Release after full asset hash/size verification and current-main checks. No new keys, credentials, yum signing repository, paid storage or permanent permissions are introduced. See [LICENSE-NOTICE.md](../LICENSE-NOTICE.md), the complete source RPM and matching upstream-license-notices.tar.gz; MIT covers only original repository scripts.
 
 Unverified or failed targets are never promoted. Existing minimal releases are not overwritten.
+
+## Exact 8.1 PHPT classification
+The original 8.1 suite has fifteen observed FAILs: three OOM shutdown/output-buffer callback differences, eight upload-progress callback differences, two expired historical SNI fixtures, one transition-count expectation and one historical RSA OAEP error-code expectation. All remain FAIL. Every accepted 8.1 fixture is bound to reviewed upstream bytes and a complete normalized diff, not a keyword. Only the two specific historical SNI diagnostics may normalize their validated ephemeral loopback port.
+
+The two date/OpenSSL environment explanations also require rerunning those unchanged official PHPTs with the exact original signed vendor PHP binary in the same runtime container before update. Both must retain FAIL and reproduce the exact patched-build diff. This is a narrow control, not an assertion that the complete vendor suite or all environment compatibility passes.
+
+Additional actual timeout/signal markers exposed in a PHPT diff block even if upstream labels the test XFAIL. Expected/deleted/context lines are not rewritten. This detects only those exposed markers, not every possible crash hidden by a broad upstream EXPECTF/REGEX. Original suite statistics remain unchanged.

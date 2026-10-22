@@ -12,9 +12,13 @@ for p in [*Path("al2-official").glob("*.py"),Path("scripts/classify-ci.py")]:
     ast.parse(p.read_text(),filename=str(p))
 data=json.load(open("al2-official/known-phpt-diffs.json"))
 for series,mapping in data["series"].items():
-    if len(mapping)!=(12 if series=="7.4" else 11):raise RuntimeError("Failure oracle inventory changed")
+    if len(mapping)!={"7.4":12,"8.0":11,"8.1":15}[series]:raise RuntimeError("Failure oracle inventory changed")
     for name,text in mapping.items():
         if not text.endswith("\n") or "UNCLASSIFIED" in text:raise RuntimeError("Invalid oracle")
+sources=data["source_sha256"]["8.1"]
+if set(sources)!={name.replace(".diff",".phpt") for name in data["series"]["8.1"]}:raise RuntimeError("Fixture hash inventory changed")
+for digest in sources.values():
+    if len(digest)!=64 or any(c not in "0123456789abcdef" for c in digest):raise RuntimeError("Invalid source fixture digest")
 print("QA_HARNESS_SYNTAX_AND_ORACLE_INVENTORY_PASSED")
 '
 python3 al2-official/test-signature-policy.py
@@ -59,6 +63,9 @@ fi
 grep -q '^OFFICIAL_SECURITY_RPM_BUILD_PASSED ' out/build.log
 # Preserve the full vendor PHPT log, but do not flood Actions' readable log transport.
 grep -E '^Tests (failed|skipped|passed|warned)|^Expected fail|^Number of tests|^OFFICIAL_' out/build.log
+if [[ "$series" = 8.1 ]]; then
+ docker exec "$cid" python3 /work/al2-official/vendor-phpt-reference.py "$series"
+fi
 docker exec "$cid" python3 /work/al2-official/phpt-policy.py "$series"
 run_phase update
 bash scripts/install-syft.sh

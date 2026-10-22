@@ -2,6 +2,7 @@
 """Retain original PHPT FAILs; reject any failure without a narrow reviewed explanation."""
 import hashlib,json,re,sys,tarfile
 from pathlib import Path
+from phpt_support import normalize_diff
 series=sys.argv[1];root=Path("/out")
 log=(root/"build.log").read_text(errors="replace")
 def number(label):
@@ -28,7 +29,12 @@ def review_warnings(text,series,members,source):
       "source_sha256":expected_sha,"classification":"The unchanged upstream timing test has an XFAIL section but matches its expected output. Retained as WARN, not relabeled PASS."}]
 session={"rfc1867","rfc1867_inter","rfc1867_sid_cookie","rfc1867_sid_get","rfc1867_sid_get_2",
  "rfc1867_sid_invalid","rfc1867_sid_only_cookie","rfc1867_sid_post"}
-allow=json.load(open("/work/al2-official/known-phpt-diffs.json"))["series"][series]
+rules=json.load(open("/work/al2-official/known-phpt-diffs.json"))
+allow=rules["series"][series]
+reference=json.load(open(root/"qa/VENDOR-PHPT-REFERENCE.json")) if series=="8.1" else None
+if reference is not None:
+    if reference["series"]!=series or reference["status"]!="recorded_not_yet_compared":
+        raise RuntimeError("Original vendor PHPT reference is absent/untrusted")
 def retained_diff_status(source):
     return "XFAIL" if re.search(r"(?m)^--XFAIL(?:_EXTERNAL)?--\s*$",source) else "FAIL"
 def abnormal_actual_hunks(diff):
@@ -43,11 +49,6 @@ def abnormal_actual_hunks(diff):
         elif re.fullmatch(r"Termsig=-?[0-9]+",actual):
             records.append({"kind":"signal","actual":actual})
     return records
-def normalize(value):
-    value=value.replace("\r","")
-    value=re.sub(r"/home/builder/rpmbuild/BUILD/php-[0-9.]+/","<SOURCE>/",value)
-    value=re.sub(r"/tmp/php[A-Za-z0-9]{6}\b","/tmp/php<FIXTURE>",value)
-    return value.rstrip()+"\n"
 results=[];expected=[];unclassified=[];warning_error=None
 with tarfile.open("/out/prepared-source.tar.gz","r:gz") as source:
     members={(m.name[2:] if m.name.startswith("./") else m.name):m for m in source.getmembers()}
@@ -73,13 +74,31 @@ with tarfile.open("/out/prepared-source.tar.gz","r:gz") as source:
         if record["actual_status"]=="XFAIL":
             expected.append(record);continue
         name=path.stem;where="/".join(rel.parts[1:])
-        if where not in allow or normalize(diff)!=allow[where]:
-            unclassified.append(record)
-            continue
+        if series=="8.1" and where in allow:
+            record["source_sha256"]=hashlib.sha256(source.extractfile(member).read()).hexdigest()
+            if record["source_sha256"]!=rules["source_sha256"][series].get(record["test"]):
+                record["classification_error"]="Prepared PHPT source differs from the reviewed fixed upstream bytes."
+                unclassified.append(record);continue
+        try:normalized=normalize_diff(diff,series,where) if where in allow else None
+        except RuntimeError as error:
+            record["classification_error"]=str(error)
+            unclassified.append(record);continue
+        if where not in allow or normalized!=allow[where]:
+            unclassified.append(record);continue
         if where.startswith("ext/session/tests/") and name in session:
             if not ("NULL" in diff or ("session id is too long" in diff and name=="rfc1867_sid_invalid")):
                 raise RuntimeError("Unclassified upload-progress diff")
             record["classification"]="Intentional callback removal; direct vendor/patched FPM progress contrast is separately required."
+        elif series=="8.1" and where in ("Zend/tests/fibers/get-return-after-bailout.diff","Zend/tests/gh11189.diff","Zend/tests/gh11189_1.diff"):
+            record["classification"]="Official OOM _exit(1) bypasses shutdown/output-buffer callbacks; exact missing callback output only. Separate installed CLI/FPM exit/no-signal/recovery gates are required."
+        elif series=="8.1" and where in ("ext/date/tests/bug80963.diff","ext/openssl/tests/openssl_error_string_basic.diff"):
+            observed=reference["tests"].get(record["test"])
+            if observed is None or observed["actual_status"]!="FAIL" or observed["source_sha256"]!=rules["source_sha256"][series][record["test"]] or observed["normalized_diff"]!=normalized or normalize_diff(observed["diff"],series,where)!=normalized:
+                record["classification_error"]="Original vendor does not reproduce the exact environment failure."
+                record["vendor_reference"]=observed
+                unclassified.append(record);continue
+            record["classification"]="Exact unchanged-source PHPT failure reproduced by the signed original vendor binary in the same environment before update; not relabeled PASS."
+            record["vendor_reference_php_sha256"]=reference["php_sha256"]
         elif where=="tests/lang/bug45392.diff":
             changes=re.findall(r"(?m)^\d+[+-]\s?(.*)$",diff)
             if changes!=[""]:raise RuntimeError("OOM output difference is not the single known newline")
@@ -92,6 +111,10 @@ with tarfile.open("/out/prepared-source.tar.gz","r:gz") as source:
             record["classification"]="Historical Tehran tzdata expectation corrected in tzdb2022b; unchanged vendor binary and exact tzdata NEVRA are separately compared."
         else:raise RuntimeError("Unclassified PHPT failure: "+where)
         results.append(record)
+if reference is not None and not unclassified and not warning_error:
+    reference["status"]="original_vendor_failure_diffs_match_patched_build"
+    (root/"qa/VENDOR-PHPT-REFERENCE.json").write_text(json.dumps(reference,indent=2,sort_keys=True))
+    print("ORIGINAL_VENDOR_PHPT_ENVIRONMENT_DIFFS_MATCH_PASSED series="+series,flush=True)
 if unclassified or warning_error:
     blocked={"series":series,"statistics":statistics,"status":"blocked","all_tests_passed":False,
       "classified_failures":results,"unclassified_failures":unclassified,"original_warnings":warnings,
@@ -99,6 +122,7 @@ if unclassified or warning_error:
     (root/"qa"/"PHPT-RESULTS.json").write_text(json.dumps(blocked,indent=2,sort_keys=True))
     print("PHPT_UNCLASSIFIED_TESTS "+json.dumps([item["test"] for item in unclassified]),flush=True)
     for item in unclassified[:100]:
+        print("UNCLASSIFIED_EVIDENCE_META "+json.dumps({key:value for key,value in item.items() if key!="diff"},sort_keys=True),flush=True)
         print("UNCLASSIFIED_DIFF_BEGIN "+item["test"]+"\n"+item["diff"][:30000]+"\nUNCLASSIFIED_DIFF_END",flush=True)
     raise RuntimeError("Unclassified PHPT evidence blocks publication; all available failures were collected")
 if len(results)!=statistics["Tests failed"] or len(warnings)!=statistics["Tests warned"] or statistics["Tests borked"]!=0:
