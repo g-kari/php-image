@@ -61,6 +61,22 @@ if series=="7.4":
       "program_headers":command(["readelf","--program-headers","--wide",str(module)])["output"]})
 emit("original-php-build-metadata",command(["rpm","-q","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}|%{BUILDTIME}\n","php-common","php-cli"]))
 emit("actual-runtime-dependencies",command(["rpm","-q","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}\n","glibc","openssl-libs","libcurl","curl","postgresql-libs","libcurl-devel","postgresql-devel"],allowed=(0,1)))
+def package_inventory():
+    return sorted(command(["rpm","-qa","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}\n"])["output"].splitlines())
+def php_native_inventory():
+    names=json.load(open("/work/al2-official/packages.json"))["main"][series]
+    paths=command(["rpm","-ql",*names])["output"].splitlines()
+    result={}
+    for name in sorted(set(paths)):
+        path=Path(name)
+        if not path.is_file():continue
+        with path.open("rb") as stream:
+            if stream.read(4)!=b"\x7fELF":continue
+        stat=path.stat()
+        result[name]={"sha256":hashlib.sha256(path.read_bytes()).hexdigest(),"realpath":str(path.resolve()),
+          "device":stat.st_dev,"inode":stat.st_ino,"size":stat.st_size,"mtime_ns":stat.st_mtime_ns,"ctime_ns":stat.st_ctime_ns}
+    if len(result)<50:raise RuntimeError("PHP ELF inventory incomplete")
+    return result
 before=digest()
 emit("system-files-before-ldconfig",before)
 command(["/sbin/ldconfig"])
@@ -72,7 +88,16 @@ for name in changed:emit("changed-owner-"+str(len(name))+"-"+hashlib.sha256(name
 # This changes inode/cache bookkeeping without introducing a custom binary.
 originals=sorted(str(path) for path in Path("/out/vendor/main").glob("*.rpm"))
 if len(originals)!={"7.4":28,"8.0":26,"8.1":26}[series]:raise RuntimeError("Original cohort inventory changed")
+packages_before=package_inventory();native_before=php_native_inventory()
+emit("reinstall-before-rpm-inventory",packages_before)
+emit("reinstall-before-php-elf",native_before)
 emit("original-cohort-reinstall",command(["yum","reinstall","-y",*originals],timeout=180))
+packages_after=package_inventory();native_after=php_native_inventory()
+emit("reinstall-after-rpm-inventory",packages_after)
+emit("reinstall-php-elf-differences",{name:{"before":native_before.get(name),"after":native_after.get(name)} for name in sorted(set(native_before)|set(native_after)) if native_before.get(name)!=native_after.get(name)})
+if packages_before!=packages_after:raise RuntimeError("Package identity changed during original-cohort reinstall")
+if set(native_before)!=set(native_after) or any(native_before[name]["sha256"]!=native_after[name]["sha256"] or native_before[name]["realpath"]!=native_after[name]["realpath"] for name in native_before):
+    raise RuntimeError("Native bytes/path changed during original-cohort reinstall")
 reinstalled=digest()
 changed_reinstall={name:{"before":after.get(name),"after":reinstalled.get(name)} for name in sorted(set(after)|set(reinstalled)) if after.get(name)!=reinstalled.get(name)}
 emit("system-files-after-original-reinstall-differences",changed_reinstall)
@@ -85,6 +110,14 @@ for line in query["output"].splitlines():
     if len(fields)==4 and fields[0] in ("libcurl-devel","postgresql-devel") and fields[3]=="x86_64":
         if any(not re.fullmatch(r"[A-Za-z0-9_.+~-]+",field) for field in fields):raise RuntimeError("Malformed SDK identity")
         records.append(fields)
+emit("available-sdk-records",records)
+if series!="7.4":
+    reference=Path("/sdk-evidence")
+    previous=json.load(open(reference/"available-sdk-records.json"))
+    if sorted(records)!=sorted(previous):raise RuntimeError("Core SDK inventory changed between series")
+    emit("reused-exact-signed-sdk-evidence",{"series":"7.4","same_core_sdk_records":True,"selected":json.load(open(reference/"selected-sdk-records.json"))})
+    print("DEPENDENCY_INVENTORY_DIAGNOSTIC_COMPLETE series="+series)
+    sys.exit(0)
 # Query text is retained in full. Limit downloads to oldest/newest representative
 # records per version, with a hard cap, not an unbounded historical SDK scan.
 selected=[]
