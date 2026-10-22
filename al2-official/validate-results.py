@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify observed vendor -> patched -> rollback results without converting PHPT FAIL to PASS."""
 import json,sys
+from feature_equivalence import canonical_payload
 from pathlib import Path
 series=sys.argv[1];root=Path("/out/qa")
 if not __debug__:raise RuntimeError("Optimized verification forbidden")
@@ -19,6 +20,7 @@ def differences(old,new,path=""):
         return [{"path":path,"removed":sorted(set(old)-set(new)),"added":sorted(set(new)-set(old))}]
     return [{"path":path,"before":old,"after":new}]
 def equal_features(old,new,label):
+    old,new=canonical_payload(old),canonical_payload(new)
     if old!=new:
         print("FEATURE_DIFFERENCES "+json.dumps({"context":label,"differences":differences(old,new)[:200]},sort_keys=True),flush=True)
         raise RuntimeError("SAPI/module/features differ: "+label)

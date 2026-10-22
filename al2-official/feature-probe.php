@@ -87,6 +87,39 @@ function al2_feature_probe($series, $sapi) {
         if (is_float($value) && (is_infinite($value) || is_nan($value))) { $value=(string)$value; }
         $constants[$name]=['type'=>$type,'value'=>$value];
     }
+    $hookKey="\0apc_register_serializer-0";
+    $processLocalHook=null;
+    if (array_key_exists($hookKey,$constants)) {
+        require_feature($series==='7.4' && phpversion('apcu')==='5.1.18','Unexpected APCu hook source');
+        $module='/usr/lib64/php/modules/apcu.so';
+        require_feature(ini_get('extension_dir')==='/usr/lib64/php/modules','Unexpected APCu module directory');
+        require_feature($constants[$hookKey]['type']==='integer' && $constants[$hookKey]['value']>0,'APCu hook representation');
+        $stream=fopen($module,'rb');
+        require_feature(is_resource($stream),'Cannot inspect the installed APCu module');
+        try {
+            $before=fstat($stream);
+            $hash=hash_init('sha256');
+            $length=hash_update_stream($hash,$stream);
+            $digest=hash_final($hash);
+            $after=fstat($stream);
+        } finally { fclose($stream); }
+        require_feature($length===$before['size'] && $digest==='28ee69e768a5c70a36e06f2305ff69eae4e3bc8f6747bdfa8518f610b7096efb','Unexpected signed vendor APCu ELF');
+        $beforeSelected=[];$afterSelected=[];
+        foreach (['dev','ino','size','mode','mtime','ctime'] as $name) {
+            require_feature(isset($before[$name],$after[$name]) && is_int($before[$name]) && is_int($after[$name]),'APCu stat evidence');
+            $beforeSelected[$name]=$before[$name];$afterSelected[$name]=$after[$name];
+        }
+        require_feature($beforeSelected===$afterSelected,'APCu module changed during hash capture');
+        $maps=file('/proc/self/maps',FILE_IGNORE_NEW_LINES);
+        require_feature(is_array($maps),'Cannot inspect current-process module mappings');
+        $maps=array_values(array_filter($maps,function($line) use($module) { return strpos($line,$module)!==false; }));
+        require_feature(count($maps)>0 && count($maps)<=32,'APCu mapping inventory');
+        // Keep original address and mapping evidence in the phase JSON.
+        // The verifier canonicalizes only this pinned ELF/function offset.
+        $processLocalHook=['constant_name'=>$hookKey,'pointer'=>$constants[$hookKey]['value'],
+          'module_path'=>$module,'module_sha256'=>$digest,'stat_before'=>$beforeSelected,
+          'stat_after'=>$afterSelected,'maps'=>$maps,'apcu_version'=>phpversion('apcu')];
+    }
     ksort($constants);sort($resourceConstants);
     $classes=[];
     foreach (array_merge(get_declared_classes(),get_declared_interfaces()) as $name) {
@@ -107,7 +140,7 @@ function al2_feature_probe($series, $sapi) {
     }
     ksort($classes);
     return ['series'=>$series,'sapi'=>PHP_SAPI,'version'=>PHP_VERSION,'zts'=>(bool)PHP_ZTS,
-      'modules'=>$loaded,'ini_loaded_file'=>php_ini_loaded_file(),'ini_scanned_files'=>php_ini_scanned_files(),'internal_function_names'=>$functions,'internal_class_api'=>$classes,'defined_constants'=>$constants,'resource_constant_names'=>$resourceConstants,'gd'=>$gd,'dba_handlers'=>$handlers,'pdo_drivers'=>$drivers,
+      'modules'=>$loaded,'ini_loaded_file'=>php_ini_loaded_file(),'ini_scanned_files'=>php_ini_scanned_files(),'internal_function_names'=>$functions,'internal_class_api'=>$classes,'defined_constants'=>$constants,'process_local_hook'=>$processLocalHook,'resource_constant_names'=>$resourceConstants,'gd'=>$gd,'dba_handlers'=>$handlers,'pdo_drivers'=>$drivers,
       'timezone_database'=>timezone_version_get(),'local_features'=>'passed',
       'limits'=>['Local APIs/roundtrips only, not database/LDAP/SNMP/FTP service interoperability.',
       'Named zts binary is recorded by actual PHP_ZTS, not assumed thread-safe.']];
