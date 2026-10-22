@@ -35,8 +35,26 @@ originals=list(root.glob("original-php-*.src.rpm"))
 if len(originals)!=1:raise RuntimeError("Original SRPM absent")
 def srpm_files(path):
     return set(subprocess.check_output(["rpm","-qpl",str(path)]).decode().splitlines())
-if srpm_files(source_rpms[0])!=srpm_files(originals[0])|{"php-upstream-cve2026.patch"}:
+sdk=json.load(open("/work/al2-official/build-sdk-lock.json"))["series"][series]
+sdk_extras={"build-sdk.py","build-sdk-lock.json",*(item["file"] for item in sdk)} if sdk else set()
+if srpm_files(source_rpms[0])!=srpm_files(originals[0])|{"php-upstream-cve2026.patch"}|sdk_extras:
     raise RuntimeError("Source RPM original material/patch set changed")
+# Preserve authenticated SDK RPM inputs with their existing header/legal payload and source identities.
+sdk_inputs=[]
+if sdk:
+    import runpy
+    archive_members=runpy.run_path("/work/al2-official/build-sdk.py")["members"]
+    srpm_data={name:data for name,mode,nlink,data in archive_members(subprocess.check_output(["rpm2cpio",str(source_rpms[0])]))}
+    sdkdest=dest/"build-sdk-inputs";sdkdest.mkdir()
+    for item in sdk:
+        data=srpm_data.get(item["file"])
+        if data is None or digest(data)!=item["sha256"]:raise RuntimeError("SRPM SDK source input changed")
+        target=sdkdest/item["file"];target.write_bytes(data)
+        actual=subprocess.check_output(["rpm","-qp","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}|%{SOURCERPM}|%{LICENSE}",str(target)]).decode()
+        if actual!=item["identity"]:raise RuntimeError("SRPM SDK legal/source metadata changed")
+        sdk_inputs.append({"file":item["file"],"sha256":item["sha256"],"identity_and_license":actual,
+          "source_obtaining":"Use the named AWS source RPM from amzn2-core-source; these build-only headers are not installed as runtime packages.",
+          "delivery":"The exact original SDK RPM with its headers/notices is embedded in the complete SRPM and this companion bundle."})
 # Vendor notice names are copied during prep; validate actual installed baseline bytes against prepared source.
 required_payload={"php-common":{"LICENSE":"LICENSE","TSRM_LICENSE":"TSRM/LICENSE",
  "libmagic_LICENSE":"ext/fileinfo/libmagic/LICENSE","timelib_LICENSE":"ext/date/lib/LICENSE.rst",
@@ -58,7 +76,7 @@ for package,mapping in required_payload.items():
         if len(rebuilt)!=1 or not any(line.startswith(str(matches[0])+"|") and line.endswith("|"+actual) for line in rebuilt[0]["legal_payload_inventory"]):
             raise RuntimeError("Rebuilt notice bytes not bound to the source")
         payload_status.append({"package":package,"path":str(matches[0]),"sha256":actual,"status":"source_and_vendor_and_rebuild_match"})
-report={"actual_notice_payload_checks":payload_status,"series":series,"rpm_metadata_and_legal_files":records,"preserved_source_legal_files":texts,
+report={"build_only_sdk_inputs":sdk_inputs,"actual_notice_payload_checks":payload_status,"series":series,"rpm_metadata_and_legal_files":records,"preserved_source_legal_files":texts,
  "source_delivery":"The rebuilt complete SRPM, original vendor spec, modified spec and exact security patch accompany the binary set.",
  "scope":"Repository MIT covers original scripts only. Original PHP/Zend and bundled/PECL/OS notices remain applicable.",
  "limits":["RPM License strings are preserved vendor metadata, not an exhaustive legal conclusion.",

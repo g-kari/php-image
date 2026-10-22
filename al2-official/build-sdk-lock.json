@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "scope": "Build-only authenticated AWS header SDK; modern runtime libraries remain installed",
+  "series": {
+    "7.4": [
+      {
+        "file": "libcurl-devel-7.79.1-7.amzn2.0.1.x86_64.rpm",
+        "url": "https://cdn.amazonlinux.com/blobstore/08667530e557bb073f991f0b3f57ff09771c4985d3f8090724677b5d069a8390/libcurl-devel-7.79.1-7.amzn2.0.1.x86_64.rpm",
+        "identity": "libcurl-devel|0|7.79.1|7.amzn2.0.1|x86_64|curl-7.79.1-7.amzn2.0.1.src.rpm|MIT",
+        "sha256": "08667530e557bb073f991f0b3f57ff09771c4985d3f8090724677b5d069a8390",
+        "headers": {
+          "/usr/include/curl/curl.h": {
+            "sha256": "a1ee956f9c03052d92fb871ed42bbed6e2559ae014c8e2fd3a4e17683cf0129f",
+            "size": 119685
+          },
+          "/usr/include/curl/curlver.h": {
+            "sha256": "ba01ad5056aa94545a7764c200a782fb734139e9d1d94d7842c44a55091aea52",
+            "size": 3035
+          },
+          "/usr/include/curl/system.h": {
+            "sha256": "3ee96da108e6d2a39ab7886ca4791fe0a4c461f7295958487955837c0cc765c3",
+            "size": 19028
+          }
+        }
+      },
+      {
+        "file": "postgresql-devel-9.2.24-6.amzn2.x86_64.rpm",
+        "url": "https://cdn.amazonlinux.com/blobstore/8710c2052938c532f1943f201a97a5875e11c3388cd69bd1aebc67cad8286f61/postgresql-devel-9.2.24-6.amzn2.x86_64.rpm",
+        "identity": "postgresql-devel|0|9.2.24|6.amzn2|x86_64|postgresql-9.2.24-6.amzn2.src.rpm|PostgreSQL",
+        "sha256": "8710c2052938c532f1943f201a97a5875e11c3388cd69bd1aebc67cad8286f61",
+        "headers": {
+          "/usr/include/pg_config.h": {
+            "sha256": "91df7ea076c9e000f0177f1bc2d41c99acbe1dba5766a0f08006b49e6662b9df",
+            "size": 1030
+          },
+          "/usr/include/pg_config_manual.h": {
+            "sha256": "300c5bf3712a3d9310dc3c2dd9d56f7e30d4885a8b206c30f56325e86fb30a42",
+            "size": 9581
+          },
+          "/usr/include/pg_config_x86_64.h": {
+            "sha256": "c8d38973ab3152fae4e02029cfb1c0a399eeb6872aa2b717a4689f581a7eeb27",
+            "size": 27059
+          }
+        }
+      }
+    ],
+    "8.0": [
+      {
+        "file": "libcurl-devel-7.88.1-1.amzn2.0.1.x86_64.rpm",
+        "url": "https://cdn.amazonlinux.com/blobstore/4905418c6b26103cd5356a68515fb63bdd674d8651ed469f0d7a2ea37e04e5a3/libcurl-devel-7.88.1-1.amzn2.0.1.x86_64.rpm",
+        "identity": "libcurl-devel|0|7.88.1|1.amzn2.0.1|x86_64|curl-7.88.1-1.amzn2.0.1.src.rpm|MIT",
+        "sha256": "4905418c6b26103cd5356a68515fb63bdd674d8651ed469f0d7a2ea37e04e5a3",
+        "headers": {
+          "/usr/include/curl/curl.h": {
+            "sha256": "a2cafaa268961254408c5158d0b52180796a6671243ea32a819a583a99dc7cb4",
+            "size": 127742
+          },
+          "/usr/include/curl/curlver.h": {
+            "sha256": "cf1b30c63904b9db3ac56fec81c5b1cb775d7b41c98927e5e2fd959fd1c39d84",
+            "size": 3046
+          },
+          "/usr/include/curl/system.h": {
+            "sha256": "afdcf4eff603a098a00a039b50a2c7576f0b1df24b02b25dd2bcf770f2472c9c",
+            "size": 19123
+          }
+        }
+      }
+    ],
+    "8.1": []
+  }
+}

@@ -22,6 +22,18 @@ x=copy.deepcopy(a);x["features"]["process_local_hook"]["module_path"]="/tmp/apcu
 x=copy.deepcopy(a);x["features"]["defined_constants"][HOOK]["type"]="string";bad.append(x)
 x=copy.deepcopy(a);x["features"]["process_local_hook"]=None;bad.append(x)
 x=copy.deepcopy(a);x["features"]["series"]="8.0";bad.append(x)
+x=copy.deepcopy(a);x["features"]["defined_constants"][HOOK]["value"]=float(x["features"]["defined_constants"][HOOK]["value"]);bad.append(x)
+x=copy.deepcopy(a);x["features"]["process_local_hook"]["maps"][0]=x["features"]["process_local_hook"]["maps"][0].replace("00:30","00:31");bad.append(x)
+x=copy.deepcopy(a);x["features"]["process_local_hook"]["maps"][0]+=" (deleted)";bad.append(x)
+x=copy.deepcopy(a);x["features"]["process_local_hook"]["maps"][0]=x["features"]["process_local_hook"]["maps"][0].replace(MODULE,"/tmp/apcu.so");bad.append(x)
+x=copy.deepcopy(a);x["features"]["process_local_hook"]["constant_name"]="other";bad.append(x)
+x=copy.deepcopy(a);x["features"]["process_local_hook"]["apcu_version"]="5.1.19";bad.append(x)
+nonzero=copy.deepcopy(a)
+base=0x7f0000000000
+nonzero["features"]["process_local_hook"]["maps"]=[f"{base+0x1000:x}-{base+0x11000:x} r-xp 00001000 00:30 9225599                    {MODULE}"]
+if canonical_payload(nonzero)!=canonical_payload(a):raise RuntimeError("Nonzero file mapping offset rejected")
+x=copy.deepcopy(nonzero);x["features"]["process_local_hook"]["maps"][0]=x["features"]["process_local_hook"]["maps"][0].replace("00001000","00001001");bad.append(x)
+x=copy.deepcopy(a);x["features"]["process_local_hook"]["maps"]=[f"{base:x}-{base+0x1000:x} r-xp 00000000 00:30 9225599                    {MODULE}"];bad.append(x)
 for value in bad:
     try:canonical_payload(value)
     except RuntimeError:pass

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-import hashlib,json,re,subprocess,sys
+import hashlib,json,os,re,stat,subprocess,sys
+from aux_cache import PATH as AUX_PATH,parse_aux
 from pathlib import Path
 series,phase=sys.argv[1:];out=Path("/out/qa")/phase;out.mkdir(exist_ok=True)
 def digest(paths):
@@ -11,7 +12,23 @@ def digest(paths):
 configs=json.load(open("/out/qa/local-config-fixtures.json"))
 (out/"config-local.sha256").write_text(digest(configs))
 paths=subprocess.check_output(["rpm","-ql","glibc","openssl-libs"]).decode().splitlines()+["/usr/bin/openssl"]
-(out/"system-libraries.sha256").write_text(digest(paths))
+if paths.count(AUX_PATH)!=1:raise RuntimeError("Exact glibc auxiliary cache owner path missing/ambiguous")
+aux=Path(AUX_PATH)
+if aux.is_symlink() or not aux.is_file():raise RuntimeError("Auxiliary cache must be a regular non-symlink")
+with aux.open("rb") as handle:
+    before=os.fstat(handle.fileno());raw=handle.read(16000001);after=os.fstat(handle.fileno())
+if any(getattr(before,key)!=getattr(after,key) for key in ("st_dev","st_ino","st_mode","st_size","st_mtime_ns","st_ctime_ns")) or not stat.S_ISREG(before.st_mode):raise RuntimeError("Auxiliary cache changed during observation")
+owner=subprocess.check_output(["rpm","-qf","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}",AUX_PATH]).decode()
+glibc=subprocess.check_output(["rpm","-q","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}","glibc"]).decode()
+if owner!=glibc or not owner.startswith("glibc|0|2.26|"):raise RuntimeError("Unexpected auxiliary cache owner")
+record={"path":AUX_PATH,"realpath":str(aux.resolve()),"owner":owner,"sha256":hashlib.sha256(raw).hexdigest(),
+ "stat":{"dev":before.st_dev,"ino":before.st_ino,"mode":before.st_mode,"size":before.st_size,"mtime_ns":before.st_mtime_ns,"ctime_ns":before.st_ctime_ns},
+ "parsed":parse_aux(raw)}
+if record["realpath"]!=AUX_PATH:raise RuntimeError("Auxiliary cache path redirect")
+(out/"generated-aux-cache.bin").write_bytes(raw)
+(out/"generated-aux-cache.json").write_text(json.dumps(record,sort_keys=True,indent=2))
+# Only this proven generated cache is separated; loader cache and every other owned file stay byte-immutable.
+(out/"system-libraries.sha256").write_text(digest(p for p in paths if p!=AUX_PATH))
 packages=subprocess.check_output(["rpm","-qa","--qf","%{NAME}|%{EPOCHNUM}|%{VERSION}|%{RELEASE}|%{ARCH}\n"]).decode().splitlines()
 (out/"nonphp-rpms.txt").write_text("\n".join(sorted(p for p in packages if not p.startswith("php")))+"\n")
 (out/"pecl-rpms.txt").write_text("\n".join(sorted(p for p in packages if p.startswith("php-pecl-")))+"\n")

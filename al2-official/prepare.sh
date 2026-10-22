@@ -47,6 +47,10 @@ test -s php-upstream-cve2026.patch
 cp php-upstream-cve2026.patch /out/
 sha256sum php-upstream-cve2026.patch > /out/upstream-security-patch.sha256
 git -C /tmp/official-php-git diff --name-only "$parent" "$commit" > /out/upstream-security-patch-files.txt
+if [[ "$series" != 8.1 ]]; then
+ cp /work/al2-official/build-sdk.py /work/al2-official/build-sdk-lock.json .
+ python3 build-sdk.py download build-sdk-lock.json "$series" .
+fi
 python3 /work/al2-official/prepare-spec.py /home/builder/rpmbuild/SPECS/official-php.spec /home/builder/rpmbuild/SPECS/php.spec /work/al2-official/source-lock.json "$series" /home/builder/rpmbuild/SOURCES/php-upstream-cve2026.patch | tee /out/spec-diff.txt
 chown -R builder:builder /home/builder/rpmbuild
 # This phase only prepares official sources; no compile, installation, or publication.

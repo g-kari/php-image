@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Allowlist-only spec edit: one extra security patch and RPM Release suffix, no SAPI/path changes."""
+"""Reviewed spec edits: complete security patch, Release suffix, authenticated build-only SDK inputs; no SAPI/path/flag changes."""
 import difflib,hashlib,json,pathlib,re,sys
 if not __debug__: raise RuntimeError("Optimized verification forbidden")
 original,destination,lockpath,series,patchpath=sys.argv[1:]
@@ -22,6 +22,24 @@ print("SECURITY_GRAMMARS_REQUIRE_REGENERATION="+json.dumps(grammar_files))
 marker="\n%description\n"
 if new.count(marker)!=1: raise RuntimeError("Ambiguous main description")
 new=new.replace(marker,"\nPatch9999: php-upstream-cve2026.patch\n"+marker,1)
+if series in ("7.4","8.0"):
+    sdk=json.load(open(pathlib.Path(lockpath).with_name("build-sdk-lock.json")))["series"][series]
+    if any(re.search(r"(?m)^Source"+str(number)+r":",source) for number in range(9991,9995)):raise RuntimeError("SDK source number already used")
+    declarations="Source9991: build-sdk.py\nSource9992: build-sdk-lock.json\n"
+    declarations+="".join("Source"+str(9993+index)+": "+item["file"]+"\n" for index,item in enumerate(sdk))
+    new=new.replace("\nPatch9999:", "\nBuildRequires: python3\n"+declarations+"\nPatch9999:",1)
+    call="python3 %{SOURCE9991} stage %{_sourcedir} %{SOURCE9992} "+series+" \"$PWD/.build-header-sdk\"\n"
+    new=new.replace("# Prevent %%doc confusion over LICENSE files\n",call+"\n# Prevent %%doc confusion over LICENSE files\n",1)
+    setup='''# Authenticated headers only. Never install or link old SDK/runtime libraries.
+for include_var in C_INCLUDE_PATH CPATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH; do
+ test -z "$(printenv "$include_var")" || exit 1
+done
+export C_INCLUDE_PATH="$PWD/.build-header-sdk/include"
+test -d "$C_INCLUDE_PATH" && test -n "$C_INCLUDE_PATH"
+'''
+    if new.count("\n%build\n")!=1 or new.count("\nmake %{?_smp_mflags}\n}")!=1:raise RuntimeError("Unknown vendor build function")
+    new=new.replace("\n%build\n","\n%build\n"+setup,1)
+    new=new.replace("\nmake %{?_smp_mflags}\n}","\npython3 %{SOURCE9991} probe ../.build-header-sdk\nmake %{?_smp_mflags}\n}",1)
 pathlib.Path(destination).write_text(new)
 diff="".join(difflib.unified_diff(source.splitlines(True),new.splitlines(True),fromfile="AWS/php.spec",tofile="local/php.spec"))
 print("OFFICIAL_SPEC_MINIMAL_DIFF_BEGIN\n"+diff+"OFFICIAL_SPEC_MINIMAL_DIFF_END")

@@ -69,6 +69,9 @@ ensure(a==c,"Rollback date/defaults differ")
 for key in ("timezone","tehran","next_tuesday"):ensure(a[key]==b[key],"System timezone behavior changed")
 if series=="7.4":ensure(a["default_multipart"] is False and str(b["default_multipart"])=="-1","7.4 multipart addition profile")
 else:ensure(a["default_multipart"]==b["default_multipart"],"Existing multipart default changed")
+for phase in ("patched","rollback"):
+    old=read("vendor","generated-aux-cache.json");new=read(phase,"generated-aux-cache.json")
+    ensure(all(old[key]==new[key] for key in ("path","realpath","owner","parsed")),"Generated auxiliary cache semantic/owner changed: "+phase)
 for file in ("config-local.sha256","system-libraries.sha256","nonphp-rpms.txt","pecl-rpms.txt","pecl-modules.sha256","rpm-verify.txt"):
     for phase in ("patched","rollback"):
         ensure((root/"vendor"/file).read_bytes()==(root/phase/file).read_bytes(),"Cohort/config/system invariant failed: "+file+" "+phase)

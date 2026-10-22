@@ -26,7 +26,7 @@ def canonical_payload(payload):
     value=constants.get(HOOK)
     require(isinstance(value,dict) and set(value)=={"type","value"} and value["type"]=="integer","constant type")
     pointer=raw["pointer"]
-    require(type(pointer) is int and pointer>0 and value["value"]==pointer,"pointer value")
+    require(type(pointer) is int and pointer>0 and type(value["value"]) is int and value["value"]==pointer,"pointer value")
     keys={"dev","ino","size","mode","mtime","ctime"}
     before,after=raw["stat_before"],raw["stat_after"]
     require(isinstance(before,dict) and isinstance(after,dict) and set(before)==set(after)==keys and before==after,"file changed while hashing")

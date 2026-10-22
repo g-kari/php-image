@@ -12,7 +12,7 @@ sources=list(out.glob("php-*.src.rpm"))
 if len(sources)!=1:raise RuntimeError("Source RPM missing or ambiguous")
 for p in [*sorted((out/"rpms").glob("*.rpm")),*sources]:
     shutil.copy2(p,release/p.name)
-for name in ("recipe.spec","official-php.spec","spec-diff.txt","built-package-metadata.txt","built-package-files.txt","sbom.spdx.json","php-upstream-cve2026.patch","upstream-security-commit.txt","upstream-security-patch-files.txt","official-srpm-signature.txt","parsed-nevr.txt","build-rpms.txt"):
+for name in ("recipe.spec","official-php.spec","spec-diff.txt","built-package-metadata.txt","built-package-files.txt","sbom.spdx.json","php-upstream-cve2026.patch","upstream-security-commit.txt","upstream-security-patch-files.txt","official-srpm-signature.txt","parsed-nevr.txt","build-rpms.txt","build-sdk-lock.json"):
     p=out/name
     if not p.is_file() or not p.stat().st_size:raise RuntimeError("Required evidence missing: "+name)
     shutil.copy2(p,release/p.name)
@@ -28,7 +28,8 @@ provenance={"schema":1,"series":series,"arch":"x86_64","recipe_commit":os.enviro
  "workflow_run":os.environ["GITHUB_SERVER_URL"]+"/"+os.environ["GITHUB_REPOSITORY"]+"/actions/runs/"+os.environ["GITHUB_RUN_ID"],
  "official_srpm":lock["srpm"],"official_srpm_sha256":lock["sha256"],"upstream_security_commit":lock["commit"],
  "upstream_security_parent":lock["parent"],"patch_sha256":sha(release/"php-upstream-cve2026.patch"),
- "rpm_sha256":rpm_digests,"source_spec_delta":"Complete upstream security patch plus explicit local Release suffix; all vendor build flags/patches/splits retained.",
+ "rpm_sha256":rpm_digests,"source_spec_delta":"Complete upstream security patch, explicit local Release suffix, and authenticated build-only header SDK staging where needed to retain original registered API values; vendor configure flags/patches/splits retained.",
+ "build_sdk_inputs":json.load(open(out/"build-sdk-lock.json"))["series"][series],
  "license_inventory_sha256":sha(out/"license-evidence/LICENSE-INVENTORY.json"),
  "qa_status":"passed bounded gates; original known PHPT failures are retained, not relabeled",
  "original_phpt_statistics":phpt["statistics"],"amazon_signed_output":False,
@@ -37,7 +38,8 @@ provenance={"schema":1,"series":series,"arch":"x86_64","recipe_commit":os.enviro
 notes="""# Unofficial AL2 official-layout PHP security rebuild
 This is not Amazon-signed or an Amazon/PHP supported release. x86_64 only.
 The exact full source/security SHA and input SRPM hash are in provenance.json.
-All main-source subpackages were rebuilt together; normal AWS paths, package splits, vendor flags, config and services are retained.
+All main-source subpackages were rebuilt together; normal AWS paths, package splits, vendor configure flags, config and services are retained.
+For7.4/8.0, authenticated old SDK headers are isolated in a build-only include directory to retain original curl/PostgreSQL API constants. No old SDK/runtime libraries are installed. The complete SDK RPM inputs/helper/lock are in the SRPM, with compiler-header traces in QA evidence. This is an explicit build-environment/spec-preparation difference, not literally only changed patch bytes.
 Unlike the older separate-prefix artifacts, these packages replace the corresponding installed system PHP cohort.
 Install only the matching series/cohort after staging review; do not install every optional package just because it is available.
 Original vendor PHPT tests run unchanged. Known FAILs/SKIPs/XFAILs and exact explanations remain in qa-evidence.tar.gz; this is NOT an all-tests-pass statement.

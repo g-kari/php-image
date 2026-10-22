@@ -25,6 +25,8 @@ python3 al2-official/test-signature-policy.py
 python3 al2-official/cgi-response.py --selftest
 python3 al2-official/test-runtime-policies.py
 python3 al2-official/test-feature-equivalence.py
+python3 al2-official/test-aux-cache.py
+python3 al2-official/test-build-sdk.py
 for file in al2-official/*.sh; do bash -n "$file"; done
 test ! -e out
 mkdir out

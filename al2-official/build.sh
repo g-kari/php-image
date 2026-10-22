@@ -28,10 +28,12 @@ rpm -qa | sort > /out/build-rpms.txt
 cp /home/builder/rpmbuild/SPECS/php.spec /out/recipe.spec
 find /home/builder/rpmbuild/BUILD -type f \( -name 'config.nice' -o -name 'config.log' -o -name 'php_test_results_*.txt' -o -name '*.diff' \) -print > /out/build-evidence-paths.txt
 mkdir -p /out/build-evidence
+# Include actual SDK/header/compiler inputs, not merely their paths.
+cp /work/al2-official/build-sdk-lock.json /out/build-sdk-lock.json
 cd /home/builder/rpmbuild/BUILD
 while IFS= read -r -d '' file; do
  cp --parents "$file" /out/build-evidence/
-done < <(find . -type f \( -name 'config.nice' -o -name 'config.log' -o -name 'php_config.h' -o -name 'php_test_results_*.txt' -o -name '*.diff' \) -print0)
+done < <(find . -type f \( -name 'config.nice' -o -name 'config.log' -o -name 'php_config.h' -o -name 'php_test_results_*.txt' -o -name '*.diff' -o -name 'sdk-headers.txt' -o -name 'sdk-macros.txt' -o -name 'sdk-probe-result.json' -o -name 'sdk-extension-compile-rules.txt' -o -path '*/.build-header-sdk/manifest.json' \) -print0)
 echo BUILT_PACKAGE_METADATA_BEGIN
 cat /out/built-package-metadata.txt
 echo BUILT_PACKAGE_METADATA_END
