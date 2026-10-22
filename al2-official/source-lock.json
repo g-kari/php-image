@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "scope": "Official Amazon Linux 2 main PHP SRPM plus the complete upstream two-CVE patch; retain all vendor configuration, SAPIs, splits and dependencies",
+  "base": "docker.io/library/amazonlinux:2@sha256:f86b99704b49b2fde6bf42b4c5257fcb0b1e0946509da5d6cea08c4227618433",
+  "series": {
+    "7.4": {
+      "name": "php",
+      "version": "7.4.33",
+      "release": "1.amzn2",
+      "srpm": "php-7.4.33-1.amzn2.src.rpm",
+      "sha256": "7d1cd66b0c150054d15e83154e6d5eb5a25285056b33a765fbec4befeffe8795",
+      "commit": "712e60f9edfd03f0960fc4fc3c2c375f42b90aa2",
+      "parent": "004cb827501d1ddaf98daacb185a53e0816f78a7",
+      "patch_profile": "official EOL minimal mitigation",
+      "trivial": ""
+    },
+    "8.0": {
+      "name": "php",
+      "version": "8.0.30",
+      "release": "1.amzn2",
+      "srpm": "php-8.0.30-1.amzn2.src.rpm",
+      "sha256": "83bbec32a53c083f1ed0afff2e4f16ea826bd89d8c9ba36e50eb70f9cb004677",
+      "commit": "82f8f31b16a035c1b67cc253e79f7cc288f4cc20",
+      "parent": "670052c427eb08a67577789e3b00e56a4fd640a7",
+      "patch_profile": "official EOL minimal mitigation",
+      "trivial": ""
+    },
+    "8.1": {
+      "name": "php",
+      "version": "8.1.34",
+      "release": "1.amzn2",
+      "srpm": "php-8.1.34-1.amzn2.src.rpm",
+      "sha256": "268a00aa08e9e14679a834c3d5f841193968816e5d17e5d59bccbfd8a03a7394",
+      "commit": "1d7dec178a094e6e75b229ce22754045f8c6070a",
+      "parent": "6f82565f12630ba320c52c96e28160189b15ecbf",
+      "patch_profile": "official EOL minimal mitigation",
+      "trivial": ""
+    },
+    "8.2": {
+      "name": "php",
+      "version": "8.2.34",
+      "release": "1.amzn2.0.1",
+      "srpm": "php-8.2.34-1.amzn2.0.1.src.rpm",
+      "sha256": "6b5f939d92d22c10c53732ea2748dcfa82a99ffd8872dc645e8e840da2b637f9",
+      "commit": "01a40e89fbfc499936e3b05888d8f00bfde886df",
+      "parent": "512c04e39f674dbf4133b8fbbd381cd8c2df6836",
+      "patch_profile": "normal supported-series two-CVE fix backport",
+      "trivial": ".0.1"
+    }
+  }
+}
