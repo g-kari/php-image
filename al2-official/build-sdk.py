@@ -102,7 +102,7 @@ def stage(source,lockfile,series,dest):
 def unit_recipe(command,index,pic_flags="-fPIC -DPIC"):
     prefix="$(LIBTOOL) --mode=compile "
     require(command.startswith("\t"+prefix+"$(CC) "),"unknown actual client compiler wrapper")
-    raw=command[1+len(prefix):]
+    raw=command[1+len(prefix):].rstrip(" \t")
     require(raw.count("-prefer-pic")<=1 and "-prefer-non-pic" not in raw,"unsupported libtool PIC mode")
     raw=raw.replace("-prefer-pic",pic_flags)
     require(not any(token in raw for token in (";","&&","||",chr(96),"\n","--sysroot","-isysroot","-nostdinc")),"unexpected client compiler search/shell override")

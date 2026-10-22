@@ -29,6 +29,8 @@ for command,limit in (([sys.executable,"-c","print('abcdef')"],3),([sys.executab
 recipe="\t$(LIBTOOL) --mode=compile $(CC) -Iext/curl/ -I/source/ext/curl/ $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) -DFIXTURE=1 -c /source/ext/curl/interface.c -o ext/curl/interface.lo"
 stem,transformed,source=ns["unit_recipe"](recipe,0)
 if transformed!="$(CC) -Iext/curl/ -I/source/ext/curl/ $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) -DFIXTURE=1 -E -H -dM /source/ext/curl/interface.c > sdk-unit-0-macros.txt 2> sdk-unit-0-headers.txt":raise RuntimeError("Actual client recipe flag order changed")
+for suffix in (" ","\t"," \t "):
+    if ns["unit_recipe"](recipe+suffix,0)!=(stem,transformed,source):raise RuntimeError("Actual recipe trailing horizontal whitespace")
 pic_recipe=recipe.replace(" -c "," -prefer-pic -c ")
 if " -fPIC -DPIC -E " not in ns["unit_recipe"](pic_recipe,0)[1]:raise RuntimeError("Libtool PIC adaptation")
 for command in (recipe.replace(" -c "," --sysroot=/wrong -c "),recipe+" && true",recipe.replace("$(LIBTOOL) --mode=compile ",""),recipe.replace(" -o "," -unknown ")):
