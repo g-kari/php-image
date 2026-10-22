@@ -10,8 +10,22 @@ concurrency:
   group: php-distribution-${{ github.sha }}
   cancel-in-progress: false
 jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      minimal: ${{ steps.scope.outputs.minimal }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        run: |
+          python3 scripts/classify-ci.py --self-test
+          python3 scripts/classify-ci.py
   verify:
-    if: github.event_name != 'push'
+    needs: changes
+    if: github.event_name != 'push' && needs.changes.outputs.minimal == 'true'
     name: Read-only ${{ matrix.target }} PHP ${{ matrix.series }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -38,7 +52,8 @@ jobs:
             bash scripts/ci-container.sh '${{ matrix.series }}'
           fi
   publish-al2:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'g-kari/php-image'
+    needs: changes
+    if: needs.changes.outputs.minimal == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'g-kari/php-image'
     name: Build test publish AL2 PHP ${{ matrix.series }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -61,7 +76,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/publish-verified.sh al2 '${{ matrix.series }}'
   publish-fpm:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'g-kari/php-image' && !contains(github.event.head_commit.message, '[al2-8.2-only]')
+    needs: changes
+    if: needs.changes.outputs.minimal == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'g-kari/php-image' && !contains(github.event.head_commit.message, '[al2-8.2-only]')
     name: Build test publish FPM PHP ${{ matrix.series }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60

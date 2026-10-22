@@ -1,0 +1,10 @@
+name: Archived independent-prefix experiment
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  archived:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo 'Superseded by the approved official AL2 SRPM security-backport route. This workflow does not build or publish.'
