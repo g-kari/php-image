@@ -2,6 +2,8 @@
 set -euo pipefail
 series="${1:?}"
 bash /work/al2-official/prepare.sh "$series"
+# Standard RPM build-system tool; the minimal AL2 container does not include make.
+yum install -y make
 yum-builddep -y /home/builder/rpmbuild/SPECS/php.spec
 # Reparse after vendor build macros/headers/dependencies are installed.
 rpmspec -q --srpm --qf '%{NAME}|%{VERSION}|%{RELEASE}\n' /home/builder/rpmbuild/SPECS/php.spec | tee /out/parsed-build-nevr.txt
