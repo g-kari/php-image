@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Credential-free, disposable cloud CI. Never use on production or a user's computer.
 set -euo pipefail
-series="${1:?}"; case "$series" in 7.4|8.0|8.1) ;; *) exit 2;; esac
+series="${1:?}"; mode="${2:-full}"
+case "$mode" in full|preflight) ;; *) exit 2;; esac
+case "$series" in 7.4|8.0|8.1) ;; *) exit 2;; esac
 test "${GITHUB_REPOSITORY:-}" = g-kari/php-image
 test "${GITHUB_SHA:-}" != ""
 python3 -c 'import ast,json,sys
@@ -38,6 +40,14 @@ run_phase() {
 }
 # Cheap baseline/fixture validation precedes the 20-30 minute compiler job.
 run_phase baseline
+if [[ "$mode" = preflight ]]; then
+ docker stop "$cid" >/dev/null
+ docker logs "$cid" > out/runtime-container.log 2>&1
+ docker rm "$cid" >/dev/null; cid=""
+ trap - EXIT
+ echo "OFFICIAL_VENDOR_BASELINE_PREFLIGHT_PASSED series=$series"
+ exit 0
+fi
 if ! docker run --rm --platform linux/amd64 --memory 6g --cpus 2 --pids-limit 512 \
  -e CI_DISPOSABLE_BUILD=1 -v "$PWD:/work:ro" -v "$PWD/out:/out" \
  "$base" bash /work/al2-official/build.sh "$series" > out/build.log 2>&1; then

@@ -22,8 +22,24 @@ jobs:
         run: |
           python3 scripts/classify-ci.py --self-test
           python3 scripts/classify-ci.py
-  verify:
+  preflight:
     needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.official == 'true'
+    name: Vendor baseline preflight PHP ${{ matrix.series }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        series: ['7.4', '8.0', '8.1']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Cheap credential-free vendor/SAPI/fixture checks before any PR compiler job
+        run: bash al2-official/ci.sh '${{ matrix.series }}' preflight
+  verify:
+    needs: [changes, preflight]
     if: github.event_name == 'pull_request' && needs.changes.outputs.official == 'true'
     name: Read-only official AL2 PHP ${{ matrix.series }}
     runs-on: ubuntu-24.04
