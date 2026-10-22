@@ -48,7 +48,8 @@ for package,mapping in required_payload.items():
     for installed_name,source_name in mapping.items():
         matches=[Path(p) for p in paths if Path(p).name==installed_name and Path(p).is_file()]
         if len(matches)!=1:raise RuntimeError("Actual packaged notice absent/ambiguous: "+package+" "+installed_name)
-        source_matches=[r for r in texts if r["source_path"].endswith("/"+source_name)]
+        source_matches=[r for r in texts if r["source_path"].endswith("/"+source_name)
+            and (source_name!="LICENSE" or len(Path(r["source_path"]).parts)==2)]
         if len(source_matches)!=1:raise RuntimeError("Prepared legal source absent/ambiguous: "+source_name)
         actual=digest(matches[0].read_bytes())
         if actual!=source_matches[0]["sha256"]:raise RuntimeError("Packaged notice differs from prepared source")
