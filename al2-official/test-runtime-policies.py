@@ -55,7 +55,7 @@ result=run(valid,mode="request",patched=False)
 if result[0]!=b"fixture" or result[2]["completion"]!="end-request":raise RuntimeError("Normal transport changed")
 print("FASTCGI_TRANSPORT_POLICY_UNIT_PASSED")
 
-ns=functions("al2-official/phpt-policy.py",["review_warnings"],{"re":re,"json":json,"hashlib":hashlib})
+ns=functions("al2-official/phpt-policy.py",["review_warnings","retained_diff_status","abnormal_actual_hunks"],{"re":re,"json":json,"hashlib":hashlib})
 # The verbatim hrtime PHPT fixture below is PHP-src php-8.0.30 material,
 # under PHP License 3.01, not the MIT license for our original test harness.
 # Source: https://github.com/php/php-src/blob/php-8.0.30/ext/standard/tests/hrtime/hrtime.phpt
@@ -101,3 +101,29 @@ reject(lambda:ns["review_warnings"](text.replace("hrtime()","unknown()"),"8.0",m
 reject(lambda:ns["review_warnings"](text+text,"8.0",members,Source()))
 reject(lambda:ns["review_warnings"](text,"8.0",{next(iter(members)):fixture+b"changed"},Source()))
 print("STRICT_PHPT_WARN_POLICY_UNIT_PASSED")
+
+# Only new actual diff lines carrying exact harness-generated sentinels block.
+for text,kind in [
+ ("001+  ** ERROR: process timed out **\n","timeout"),
+ ("019+ Termsig=11\r\n","signal"),
+ ("1001+ Termsig=0\n","signal")]:
+    result=ns["abnormal_actual_hunks"](text)
+    if len(result)!=1 or result[0]["kind"]!=kind:raise RuntimeError("Abnormal PHPT actual hunk accepted")
+for text in [
+ "001- ** ERROR: process timed out **\n",
+ "001- Termsig=11\n",
+ "     Termsig=11\n",
+ " ** ERROR: process timed out **\n",
+ "001+ Message mentions Termsig=11 but is not a harness sentinel\n",
+ "001+ ** ERROR: process timed out ** followed by unrelated text\n",
+ "001+ Termsig=not-a-number\n",
+ "001+ ordinary expected-failure output\n",
+ "1+ Termsig=11\n",
+ "001+Termsig=11\n",
+ "001+\tTermsig=11\n",
+ "001+  Termsig=11\n",
+ "001+ ** ERROR: process timed out **\n"]:
+    if ns["abnormal_actual_hunks"](text):raise RuntimeError("Expected/context/ordinary text misclassified")
+for source,status in [("--XFAIL--\nKnown upstream bug\n","XFAIL"),("--XFAIL_EXTERNAL--\nreason.txt\n","XFAIL"),("--EXPECT--\nfixture\n","FAIL")]:
+    if ns["retained_diff_status"](source)!=status:raise RuntimeError("Original upstream status relabeled")
+print("STRICT_PHPT_XFAIL_ABNORMAL_POLICY_UNIT_PASSED")

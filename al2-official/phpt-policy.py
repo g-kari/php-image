@@ -29,6 +29,20 @@ def review_warnings(text,series,members,source):
 session={"rfc1867","rfc1867_inter","rfc1867_sid_cookie","rfc1867_sid_get","rfc1867_sid_get_2",
  "rfc1867_sid_invalid","rfc1867_sid_only_cookie","rfc1867_sid_post"}
 allow=json.load(open("/work/al2-official/known-phpt-diffs.json"))["series"][series]
+def retained_diff_status(source):
+    return "XFAIL" if re.search(r"(?m)^--XFAIL(?:_EXTERNAL)?--\s*$",source) else "FAIL"
+def abnormal_actual_hunks(diff):
+    records=[]
+    for line in diff.split("\n"):
+        if line.endswith("\r"):line=line[:-1]
+        match=re.fullmatch(r"[0-9]{3,}\+ (.*)",line)
+        if not match:continue
+        actual=match.group(1)
+        if actual==" ** ERROR: process timed out **":
+            records.append({"kind":"timeout","actual":actual})
+        elif re.fullmatch(r"Termsig=[0-9]+",actual):
+            records.append({"kind":"signal","actual":actual})
+    return records
 def normalize(value):
     value=value.replace("\r","")
     value=re.sub(r"/home/builder/rpmbuild/BUILD/php-[0-9.]+/","<SOURCE>/",value)
@@ -50,8 +64,14 @@ with tarfile.open("/out/prepared-source.tar.gz","r:gz") as source:
         diff=path.read_text(errors="replace")
         record={"test":"/".join(rel.parts[1:]).replace(".diff",".phpt"),"actual_status":"FAIL",
                 "diff_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),"diff":diff}
-        if re.search(r"(?m)^--XFAIL(?:_EXTERNAL)?--\s*$",text):
-            record["actual_status"]="XFAIL";expected.append(record);continue
+        record["actual_status"]=retained_diff_status(text)
+        abnormal=abnormal_actual_hunks(diff)
+        if abnormal:
+            record["classification_error"]="Added actual timeout/signal sentinel blocks even when upstream marks this test XFAIL."
+            record["abnormal_actual_hunks"]=abnormal
+            unclassified.append(record);continue
+        if record["actual_status"]=="XFAIL":
+            expected.append(record);continue
         name=path.stem;where="/".join(rel.parts[1:])
         if where not in allow or normalize(diff)!=allow[where]:
             unclassified.append(record)
@@ -85,7 +105,7 @@ if len(results)!=statistics["Tests failed"] or len(warnings)!=statistics["Tests 
     print("PHPT_INVENTORY_MISMATCH "+json.dumps({"statistics":statistics,"classified_failures":len(results),"classified_warnings":len(warnings)}),flush=True)
     raise RuntimeError("PHPT failure inventory/count mismatch")
 report={"series":series,"statistics":statistics,"original_failures":results,"original_warnings":warnings,"expected_fail_evidence":expected,
- "status":"no_unclassified_failure","timeout_policy":"Any new timeout changes an exact failure oracle or count and blocks; vendor SKIP/XFAIL remain separate.","all_tests_passed":False,
+ "status":"no_unclassified_failure","timeout_policy":"Added actual timeout/Termsig sentinels block even for XFAIL; new ordinary FAIL diffs/counts also block. Original suite statuses and vendor SKIP/XFAIL remain separate.","all_tests_passed":False,
  "limitations":["The original vendor suite uses the without-shared Apache build CLI and has many SKIPs.",
  "Known FAILs have explanations and replacement runtime gates; they are not relabeled PASS."]}
 (root/"qa"/"PHPT-RESULTS.json").write_text(json.dumps(report,indent=2,sort_keys=True))
