@@ -1,6 +1,6 @@
 # Rebuild ALL PHP binaries and bundled shared extensions from the fixed upstream tree.
 # The old official php:8.0-fpm is provenance/compatibility input, NOT evidence of a fix.
-FROM docker.io/library/php:8.0-fpm@sha256:b07b8df17506cdb370945d942c5f12356af2d078005ded8b195f7e17129de9d1 AS build
+FROM docker.io/library/php:8.1-fpm@sha256:a3118db1911fdd3b3ac66605122ddc859286688ced86fc860fec6d19cc2d6c55 AS build
 USER root
 COPY sources/php-8.0.tar /work/php.tar
 COPY sources/php-8.0.json /work/source.json
@@ -31,7 +31,7 @@ RUN set -eux; \
     find /stage/usr/local -type f -name '*.a' -delete; \
     cd /stage; find usr/local/bin/php usr/local/sbin/php-fpm usr/local/lib/php/extensions -type f -print0 | sort -z | xargs -0 sha256sum > usr/local/share/php-mitigation/binaries.sha256
 
-FROM docker.io/library/php:8.0-fpm@sha256:b07b8df17506cdb370945d942c5f12356af2d078005ded8b195f7e17129de9d1
+FROM docker.io/library/php:8.1-fpm@sha256:a3118db1911fdd3b3ac66605122ddc859286688ced86fc860fec6d19cc2d6c55
 ARG RECIPE_REVISION
 ARG SOURCE_ARCHIVE_SHA256
 ENV PHP_VERSION="8.0.30" PHP_URL="" PHP_ASC_URL="" PHP_SHA256="" \
