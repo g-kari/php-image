@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   changes:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       official: ${{ steps.scope.outputs.official }}
     steps:
@@ -26,7 +26,7 @@ jobs:
     needs: changes
     if: github.event_name == 'pull_request' && needs.changes.outputs.official == 'true'
     name: Read-only official AL2 PHP ${{ matrix.series }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 100
     strategy:
       fail-fast: false
@@ -42,7 +42,7 @@ jobs:
     needs: changes
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'g-kari/php-image' && needs.changes.outputs.official == 'true'
     name: Build test publish official AL2 PHP ${{ matrix.series }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 100
     permissions:
       contents: write

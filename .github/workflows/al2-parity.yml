@@ -5,6 +5,6 @@ permissions:
   contents: read
 jobs:
   archived:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - run: echo 'Superseded by the approved official AL2 SRPM security-backport route. This workflow does not build or publish.'
