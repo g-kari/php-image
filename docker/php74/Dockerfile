@@ -1,6 +1,6 @@
 # Rebuild ALL PHP binaries and bundled shared extensions from the fixed upstream tree.
 # The old official php:7.4-fpm is provenance/compatibility input, NOT evidence of a fix.
-FROM docker.io/library/php:7.4-fpm@sha256:3ac7c8c74b2b047c7cb273469d74fc0d59b857aa44043e6ea6a0084372811d5b AS build
+FROM docker.io/library/php:8.1-fpm@sha256:a3118db1911fdd3b3ac66605122ddc859286688ced86fc860fec6d19cc2d6c55 AS build
 USER root
 COPY sources/php-7.4.tar /work/php.tar
 COPY sources/php-7.4.json /work/source.json
@@ -31,7 +31,7 @@ RUN set -eux; \
     find /stage/usr/local -type f -name '*.a' -delete; \
     cd /stage; find usr/local/bin/php usr/local/sbin/php-fpm usr/local/lib/php/extensions -type f -print0 | sort -z | xargs -0 sha256sum > usr/local/share/php-mitigation/binaries.sha256
 
-FROM docker.io/library/php:7.4-fpm@sha256:3ac7c8c74b2b047c7cb273469d74fc0d59b857aa44043e6ea6a0084372811d5b
+FROM docker.io/library/php:8.1-fpm@sha256:a3118db1911fdd3b3ac66605122ddc859286688ced86fc860fec6d19cc2d6c55
 ARG RECIPE_REVISION
 ARG SOURCE_ARCHIVE_SHA256
 ENV PHP_VERSION="7.4.34-dev" PHP_URL="" PHP_ASC_URL="" PHP_SHA256="" \
