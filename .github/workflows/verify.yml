@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   changes:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       minimal: ${{ steps.scope.outputs.minimal }}
     steps:
@@ -27,7 +27,7 @@ jobs:
     needs: changes
     if: github.event_name != 'push' && needs.changes.outputs.minimal == 'true'
     name: Read-only ${{ matrix.target }} PHP ${{ matrix.series }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -55,7 +55,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.minimal == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'g-kari/php-image'
     name: Build test publish AL2 PHP ${{ matrix.series }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     permissions:
       contents: write
@@ -79,7 +79,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.minimal == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'g-kari/php-image' && !contains(github.event.head_commit.message, '[al2-8.2-only]')
     name: Build test publish FPM PHP ${{ matrix.series }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     permissions:
       contents: write
